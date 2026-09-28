@@ -1,11 +1,11 @@
-<div align="center">
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+  # Design Ghost Note Interface
 
-  <h1>Built with AI Studio</h2>
+  This is a code bundle for Design Ghost Note Interface. The original project is available at https://www.figma.com/design/wLr7abwXTWD2UBvLYCQpDC/Design-Ghost-Note-Interface.
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+  ## Running the code
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+  Run `npm i` to install the dependencies.
 
-</div>
+  Run `npm run dev` to start the development server.
+  
