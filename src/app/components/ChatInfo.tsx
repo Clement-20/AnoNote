@@ -28,11 +28,54 @@ const chatDetails: Record<string, any> = {
 export function ChatInfo() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const chat = chatDetails[id || "1"] || {
-    name: `Anon #${(id || "1").slice(-4)}`,
-    avatar: "👤",
-    about: "anoNote anonymous contact",
-  };
+
+  const chat = (() => {
+    const currentId = id || "1";
+    try {
+      const savedChats = JSON.parse(localStorage.getItem("anonote_chats") || "[]");
+      const found = savedChats.find((c: any) => c.id === currentId || c.name === currentId);
+      if (found) {
+        return {
+          name: found.name,
+          avatar: found.avatar || "👤",
+          about: found.about || "End-to-end encrypted direct anonymous peer",
+          isVerified: !!found.isVerified,
+        };
+      }
+      const savedContacts = JSON.parse(localStorage.getItem("anonote_contacts") || "[]");
+      const foundContact = savedContacts.find((c: any) => c.id === currentId || c.name === currentId);
+      if (foundContact) {
+        return {
+          name: foundContact.name,
+          avatar: foundContact.avatar || "👤",
+          about: foundContact.about || "anoNote anonymous contact",
+          isVerified: !!foundContact.isVerified,
+        };
+      }
+    } catch (e) {
+      console.error(e);
+    }
+
+    if (chatDetails[currentId]) {
+      return chatDetails[currentId];
+    }
+
+    if (currentId.startsWith("Anon")) {
+      return {
+        name: currentId,
+        avatar: "👤",
+        about: "anoNote anonymous contact",
+        isVerified: false,
+      };
+    }
+
+    return {
+      name: `Anon #${currentId.replace(/[^0-9a-zA-Z]/g, "") || currentId}`,
+      avatar: "👤",
+      about: "anoNote anonymous contact",
+      isVerified: false,
+    };
+  })();
   const [disappearingSetting, setDisappearingSetting] = useState("off");
   const [showDisappearingModal, setShowDisappearingModal] = useState(false);
   const [showWallpaperModal, setShowWallpaperModal] = useState(false);
@@ -70,11 +113,11 @@ export function ChatInfo() {
           </div>
           <div className="flex items-center gap-2">
             <h2 className="text-white text-2xl font-medium">{chat.name}</h2>
-            {(["1", "2", "7"].includes(id || "1")) && (
+            {chat.isVerified && (
               <VerifiedBadge size="md" userName={chat.name} />
             )}
           </div>
-          {(["1", "2", "7"].includes(id || "1")) && (
+          {chat.isVerified && (
             <div className="mt-2.5 flex items-center gap-1.5 px-3 py-1 bg-purple-500/15 border border-purple-500/30 rounded-full text-xs text-purple-300 font-medium">
               <VerifiedBadge size="xs" interactive={false} />
               Cryptographically Verified Anon

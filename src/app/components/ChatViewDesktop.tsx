@@ -1,56 +1,52 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router";
-import { ArrowLeft, MoreVertical, Send, Paperclip, Smile, Phone, Video, Palette, Mic, Trash2, Pin, X, Reply } from "lucide-react";
+import { ArrowLeft, MoreVertical, Send, Paperclip, Phone, Video, Palette, Mic, Trash2, Pin, X, Reply, WifiOff } from "lucide-react";
 import { MessageBubble } from "./MessageBubble";
 import { ChatMenu } from "./ChatMenu";
 import { ForwardMessageModal } from "./ForwardMessageModal";
 import { WallpaperModal } from "./WallpaperModal";
 import { VerifiedBadge } from "./VerifiedBadge";
-
-const messagesData: Record<string, any[]> = {
-  "1": [
-    { id: "m1", text: "Hey! How are you doing?", isSent: false, timestamp: "2:30 PM", status: "read", reactions: { "👍": ["user2"] } },
-    { id: "m2", text: "I'm doing great! Thanks for asking 😊", isSent: true, timestamp: "2:32 PM", status: "read", reactions: { "❤️": ["user1"] } },
-    { id: "m3", text: "I wanted to talk to you about something interesting I discovered today", isSent: false, timestamp: "2:33 PM", status: "read" },
-    { id: "m4", text: "That sounds interesting! Tell me more...", isSent: false, timestamp: "2:45 PM", status: "read", reactions: { "😂": ["user2"] } },
-  ],
-  "2": [
-    { id: "m1", text: "Did you see the news today?", isSent: true, timestamp: "1:15 PM", status: "read" },
-    { id: "m2", text: "Yes! It's quite surprising", isSent: false, timestamp: "1:20 PM", status: "read" },
-    { id: "m3", text: "Thanks for sharing that", isSent: false, timestamp: "1:32 PM", status: "read", reactions: { "👍": ["user1"] } },
-  ],
-};
-
-const chatNames: Record<string, string> = {
-  "1": "Anon #3847", "2": "Anon #7291", "3": "Anon #5612", "4": "Anon #9204",
-  "5": "Anon #4156", "6": "Anon #8873", "7": "Anon #2490", "8": "Anon #6371",
-};
-
-const chatAvatars: Record<string, string> = {
-  "1": "👤", "2": "🕶️", "3": "🎭", "4": "👤",
-  "5": "🌑", "6": "💭", "7": "🔮", "8": "🎪",
-};
+import { useAuth } from "../context/AuthContext";
+import {
+  subscribeToMessages,
+  sendChatMessage,
+  subscribeToChatDraft,
+  saveChatDraft,
+  deleteChatDraft,
+  subscribeToQueueCount,
+  FirestoreMessage,
+} from "../services/chatService";
 
 export function ChatViewDesktop() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
   const [message, setMessage] = useState("");
   const [showMenu, setShowMenu] = useState(false);
+  const [isOnline, setIsOnline] = useState(() => (typeof navigator !== "undefined" ? navigator.onLine : true));
+  const [queuedCount, setQueuedCount] = useState(0);
 
-  const currentChatId = id || "1";
+  useEffect(() => {
+    const unsubQueue = subscribeToQueueCount((count) => {
+      setQueuedCount(count);
+    });
+    return () => unsubQueue();
+  }, []);
 
-  const [messagesMap, setMessagesMap] = useState<Record<string, any[]>>(() => {
-    const saved = localStorage.getItem("anonote_messages_map");
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        return messagesData;
-      }
-    }
-    return messagesData;
-  });
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
+  const currentChatId = id || "general";
+
+  const [firestoreMessages, setFirestoreMessages] = useState<FirestoreMessage[]>([]);
   const [wallpaper, setWallpaper] = useState(() => {
     return localStorage.getItem(`anonote_wallpaper_${currentChatId}`) || "bg-[#0a0a0a]";
   });
@@ -60,6 +56,53 @@ export function ChatViewDesktop() {
   const [pinnedMessage, setPinnedMessage] = useState<{ id: string; text: string } | null>(null);
   const [replyingTo, setReplyingTo] = useState<{ id: string; text: string; senderName: string } | null>(null);
   const textInputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const draftLoadedRef = useRef(false);
+  const saveDraftTimerRef = useRef<any>(null);
+
+  // Subscribe and load draft for this chat
+  useEffect(() => {
+    draftLoadedRef.current = false;
+    setMessage("");
+    setReplyingTo(null);
+
+    const unsubscribe = subscribeToChatDraft(currentUser.anonId, currentChatId, (draft) => {
+      if (!draftLoadedRef.current) {
+        draftLoadedRef.current = true;
+        if (draft) {
+          setMessage(draft.text || "");
+          if (draft.replyTo) {
+            setReplyingTo(draft.replyTo);
+          }
+        }
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      draftLoadedRef.current = false;
+    };
+  }, [currentChatId, currentUser.anonId]);
+
+  // Debounced auto-save draft to Firestore
+  useEffect(() => {
+    if (!draftLoadedRef.current) return;
+
+    if (saveDraftTimerRef.current) {
+      clearTimeout(saveDraftTimerRef.current);
+    }
+
+    saveDraftTimerRef.current = setTimeout(() => {
+      saveChatDraft(currentUser.anonId, currentChatId, message, replyingTo);
+    }, 300);
+
+    return () => {
+      if (saveDraftTimerRef.current) {
+        clearTimeout(saveDraftTimerRef.current);
+      }
+    };
+  }, [message, replyingTo, currentChatId, currentUser.anonId]);
 
   // Voice recording states
   const [isRecording, setIsRecording] = useState(false);
@@ -67,34 +110,80 @@ export function ChatViewDesktop() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<any>(null);
-
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const messages = messagesMap[currentChatId] || [
-    { id: "m1", text: "Hello! Welcome to encrypted anonymous chat on anoNote.", isSent: false, timestamp: "12:00 PM", status: "read" }
-  ];
-  const chatName = chatNames[currentChatId] || `Anon #${currentChatId.slice(-4)}`;
-  const chatAvatar = chatAvatars[currentChatId] || "👤";
-
+  // Real-time message listener from Firestore
   useEffect(() => {
-    localStorage.setItem("anonote_messages_map", JSON.stringify(messagesMap));
-  }, [messagesMap]);
+    const unsubscribe = subscribeToMessages(currentChatId, (msgs) => {
+      setFirestoreMessages(msgs);
+    });
+    return () => unsubscribe();
+  }, [currentChatId]);
+
+  // Dynamic peer metadata lookup from chat ID
+  const chatMeta = (() => {
+    // If chat ID is a direct chat (chat_anon1__anon2), extract peer ID
+    if (currentChatId.startsWith("chat_")) {
+      const parts = currentChatId.replace("chat_", "").split("__");
+      // Find the one that doesn't match current user's normalized ID
+      const myClean = currentUser.anonId.toLowerCase().replace(/[^a-zA-Z0-9]/g, "_");
+      const peerClean = parts.find((p) => p !== myClean) || parts[0];
+      const displayName = `Anon #${peerClean.replace(/[^0-9]/g, "") || peerClean}`;
+      return {
+        name: displayName,
+        avatar: "👤",
+        isVerified: false,
+      };
+    }
+
+    if (currentChatId.startsWith("peer_")) {
+      return {
+        name: "Direct Peer",
+        avatar: "👤",
+        isVerified: false,
+      };
+    }
+
+    if (currentChatId.startsWith("Anon")) {
+      return {
+        name: currentChatId,
+        avatar: "👤",
+        isVerified: false,
+      };
+    }
+
+    return {
+      name: `Anon #${currentChatId.replace(/[^0-9a-zA-Z]/g, "") || currentChatId}`,
+      avatar: "👤",
+      isVerified: false,
+    };
+  })();
+
+  const chatName = chatMeta.name;
+  const chatAvatar = chatMeta.avatar;
+  const isChatVerified = chatMeta.isVerified;
+
+  // Transform firestore messages to UI bubble format
+  const messages = firestoreMessages.map((m) => ({
+    id: m.id,
+    text: m.text,
+    isSent: m.senderAnonId === currentUser.anonId,
+    timestamp: m.timestamp || "Just now",
+    status: m.status || "delivered",
+    isPending: m.isPending,
+    mediaUrl: m.mediaUrl,
+    mediaType: m.mediaType,
+    senderName: m.senderName || m.senderAnonId,
+  }));
+
+  // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages.length]);
 
   useEffect(() => {
     localStorage.setItem(`anonote_wallpaper_${currentChatId}`, wallpaper);
   }, [wallpaper, currentChatId]);
-
-  // Emit 'message_read' event when user opens the chat
-  useEffect(() => {
-    const event = new CustomEvent("message_read", { detail: { chatId: currentChatId, userId: "me" } });
-    window.dispatchEvent(event);
-
-    setMessagesMap(prev => {
-      const chatMessages = prev[currentChatId] || [];
-      const updated = chatMessages.map(msg => ({ ...msg, status: "read" as const }));
-      return { ...prev, [currentChatId]: updated };
-    });
-  }, [currentChatId]);
 
   const handleReply = (msg: any) => {
     setReplyingTo({
@@ -105,50 +194,29 @@ export function ChatViewDesktop() {
     textInputRef.current?.focus();
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (message.trim()) {
-      const newMessage = {
-        id: `m_${Date.now()}`,
-        text: message.trim(),
-        isSent: true,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        status: "delivered",
-        replyTo: replyingTo ? {
-          id: replyingTo.id,
-          text: replyingTo.text,
-          senderName: replyingTo.senderName,
-        } : undefined,
-      };
-      setMessagesMap(prev => ({
-        ...prev,
-        [currentChatId]: [...(prev[currentChatId] || messages), newMessage]
-      }));
+      const textToSend = replyingTo ? `↳ Replying to: "${replyingTo.text.slice(0, 30)}..."\n${message.trim()}` : message.trim();
+      const targetChatId = currentChatId;
       setMessage("");
       setReplyingTo(null);
+      await deleteChatDraft(currentUser.anonId, targetChatId);
+      await sendChatMessage(targetChatId, currentUser, textToSend);
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const mediaUrl = URL.createObjectURL(file);
-      const newMessage = {
-        id: `m_${Date.now()}`,
-        text: file.name ? `📷 ${file.name}` : "📷 Photo",
-        isSent: true,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        status: "delivered",
-        mediaUrl,
-        mediaType: "image" as const,
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64Data = reader.result as string;
+        await sendChatMessage(currentChatId, currentUser, file.name ? `📷 ${file.name}` : "📷 Photo", "image", base64Data);
       };
-      setMessagesMap(prev => ({
-        ...prev,
-        [currentChatId]: [...(prev[currentChatId] || messages), newMessage]
-      }));
+      reader.readAsDataURL(file);
     }
   };
 
-  // Voice recording handlers
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -163,37 +231,30 @@ export function ChatViewDesktop() {
       };
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        const mediaUrl = URL.createObjectURL(audioBlob);
-        const newMessage = {
-          id: `m_${Date.now()}`,
-          text: `Voice Note (${Math.floor(recordingSeconds / 60)}:${(recordingSeconds % 60).toString().padStart(2, '0')})`,
-          isSent: true,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          status: "delivered",
-          mediaUrl,
-          mediaType: "audio" as const,
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        const reader = new FileReader();
+        reader.onload = async () => {
+          const base64Audio = reader.result as string;
+          await sendChatMessage(
+            currentChatId,
+            currentUser,
+            `Voice Note (${Math.floor(recordingSeconds / 60)}:${(recordingSeconds % 60).toString().padStart(2, "0")})`,
+            "audio",
+            base64Audio
+          );
         };
-        setMessagesMap(prev => ({
-          ...prev,
-          [currentChatId]: [...(prev[currentChatId] || messages), newMessage]
-        }));
-        stream.getTracks().forEach(track => track.stop());
+        reader.readAsDataURL(audioBlob);
+        stream.getTracks().forEach((track) => track.stop());
       };
 
       mediaRecorder.start();
       setIsRecording(true);
       setRecordingSeconds(0);
       timerRef.current = setInterval(() => {
-        setRecordingSeconds(prev => prev + 1);
+        setRecordingSeconds((prev) => prev + 1);
       }, 1000);
     } catch (err) {
-      console.error("Error accessing microphone:", err);
-      setIsRecording(true);
-      setRecordingSeconds(0);
-      timerRef.current = setInterval(() => {
-        setRecordingSeconds(prev => prev + 1);
-      }, 1000);
+      console.error("Microphone access error:", err);
     }
   };
 
@@ -203,295 +264,295 @@ export function ChatViewDesktop() {
       if (send) {
         mediaRecorderRef.current.stop();
       } else {
-        mediaRecorderRef.current.stream?.getTracks().forEach(track => track.stop());
+        mediaRecorderRef.current.stream?.getTracks().forEach((track) => track.stop());
         mediaRecorderRef.current.stop();
       }
-    } else if (send) {
-      const simulatedBlob = new Blob([], { type: 'audio/webm' });
-      const mediaUrl = URL.createObjectURL(simulatedBlob);
-      const newMessage = {
-        id: `m_${Date.now()}`,
-        text: `Voice Note (${Math.floor(recordingSeconds / 60)}:${(recordingSeconds % 60).toString().padStart(2, '0')})`,
-        isSent: true,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        status: "delivered",
-        mediaUrl,
-        mediaType: "audio" as const,
-      };
-      setMessagesMap(prev => ({
-        ...prev,
-        [currentChatId]: [...(prev[currentChatId] || messages), newMessage]
-      }));
     }
     setIsRecording(false);
     setRecordingSeconds(0);
   };
 
-  const handleForwardMessage = (targetChatId: string) => {
+  const handleForwardMessage = async (targetChatId: string) => {
     if (!forwardingMsg) return;
-    const forwarded = {
-      id: `m_${Date.now()}`,
-      text: `[Forwarded] ${forwardingMsg}`,
-      isSent: true,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      status: "delivered",
-    };
-    setMessagesMap(prev => ({
-      ...prev,
-      [targetChatId]: [...(prev[targetChatId] || []), forwarded]
-    }));
+    await sendChatMessage(targetChatId, currentUser, `[Forwarded] ${forwardingMsg}`);
     setForwardingMsg(null);
   };
 
-  const handleReact = (messageId: string, emoji: string) => {
-    setMessagesMap(prev => {
-      const chatMessages = prev[currentChatId] || messages;
-      const updated = chatMessages.map(msg => {
-        if (msg.id === messageId) {
-          const reactions = { ...(msg.reactions || {}) };
-          const currentReacted = reactions[emoji] || [];
-          if (Array.isArray(currentReacted)) {
-            if (currentReacted.includes("me")) {
-              reactions[emoji] = currentReacted.filter((u: string) => u !== "me");
-              if (reactions[emoji].length === 0) delete reactions[emoji];
-            } else {
-              reactions[emoji] = [...currentReacted, "me"];
-            }
-          } else {
-            const count = Number(currentReacted) || 0;
-            reactions[emoji] = count > 0 ? 0 : ["me"];
-            if (reactions[emoji] === 0) delete reactions[emoji];
-          }
-          return { ...msg, reactions };
-        }
-        return msg;
-      });
-      return { ...prev, [currentChatId]: updated };
-    });
+  const handleClearChat = () => {
+    if (confirm("Are you sure you want to clear your local view of this chat?")) {
+      setFirestoreMessages([]);
+    }
   };
 
   return (
-    <div className={`flex flex-col h-full ${wallpaper} transition-colors duration-300`}>
+    <div className={`flex flex-col h-full ${wallpaper} relative transition-colors duration-300`}>
+      {/* Hidden File Input for Attachments */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleImageUpload}
+        accept="image/*"
+        className="hidden"
+      />
+
       {/* Header */}
-      <header className="bg-[#1c1c1e] px-4 md:px-6 py-3 md:py-4 flex items-center justify-between border-b border-gray-800">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
+      <header className="bg-[#181820]/90 backdrop-blur-xl px-4 py-3 flex items-center justify-between border-b border-white/[0.08] z-10 shadow-sm sticky top-0">
+        <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={() => navigate("/")}
-            className="lg:hidden text-purple-400 hover:text-purple-300 transition-colors flex-shrink-0"
+            className="lg:hidden text-gray-400 hover:text-white p-1.5 -ml-1 rounded-xl hover:bg-white/[0.06] transition-colors flex-shrink-0"
+            title="Back to chats"
           >
-            <ArrowLeft className="w-6 h-6" />
+            <ArrowLeft className="w-5 h-5" />
           </button>
-          <Link to={`/chat/${currentChatId}/info`} className="flex items-center gap-3 flex-1 min-w-0">
-            <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center text-xl md:text-2xl flex-shrink-0">
-              {chatAvatar}
+          
+          <Link to={`/chat-info/${currentChatId}`} className="flex items-center gap-3 min-w-0 group">
+            <div className="relative flex-shrink-0">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#2a2a35] to-[#1c1c24] border border-white/15 flex items-center justify-center text-xl shadow-md group-hover:scale-105 transition-transform">
+                {chatAvatar}
+              </div>
+              <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-[#181820]" />
             </div>
+            
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 min-w-0">
-                <h2 className="text-white font-medium text-base md:text-lg truncate">{chatName}</h2>
-                {(["1", "2", "7"].includes(currentChatId)) && (
+                <h2 className="text-white font-bold text-sm md:text-base truncate group-hover:text-purple-300 transition-colors font-display">
+                  {chatName}
+                </h2>
+                {isChatVerified && (
                   <VerifiedBadge size="sm" userName={chatName} />
                 )}
               </div>
-              <p className="text-xs text-purple-400 font-mono">End-to-End Encrypted</p>
+              {isOnline ? (
+                queuedCount > 0 ? (
+                  <p className="text-[11px] text-purple-400 font-mono flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-ping inline-block" />
+                    Syncing {queuedCount} queued message{queuedCount > 1 ? 's' : ''}...
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-emerald-400 font-mono flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />
+                    Live Cloud Sync
+                  </p>
+                )
+              ) : (
+                <p className="text-[11px] text-amber-400 font-mono flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
+                  Offline ({queuedCount} queued in Dexie)
+                </p>
+              )}
             </div>
           </Link>
         </div>
-        <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
-          <button
+
+        <div className="flex items-center gap-1 sm:gap-1.5">
+          <button 
             onClick={() => setShowWallpaperModal(true)}
-            className="text-gray-400 hover:text-white transition-colors"
-            title="Change Chat Wallpaper"
+            className="text-gray-400 hover:text-purple-300 p-2 rounded-xl hover:bg-white/[0.08] transition-colors"
+            title="Custom Chat Wallpaper"
           >
-            <Palette className="w-5 h-5 md:w-6 md:h-6" />
+            <Palette className="w-4 h-4" />
           </button>
-          <button className="text-gray-400 hover:text-white transition-colors">
-            <Video className="w-5 h-5 md:w-6 md:h-6" />
-          </button>
-          <button className="text-gray-400 hover:text-white transition-colors">
-            <Phone className="w-5 h-5 md:w-6 md:h-6" />
-          </button>
-          <button
-            onClick={() => setShowMenu(!showMenu)}
-            className="text-gray-400 hover:text-white transition-colors relative"
+          
+          <button 
+            onClick={() => navigate(`/call/${currentChatId}`)}
+            className="text-gray-400 hover:text-white p-2 rounded-xl hover:bg-white/[0.08] transition-colors"
+            title="Encrypted Audio Call"
           >
-            <MoreVertical className="w-5 h-5 md:w-6 md:h-6" />
+            <Phone className="w-4 h-4" />
           </button>
+          <button 
+            onClick={() => navigate(`/call/${currentChatId}?video=true`)}
+            className="text-gray-400 hover:text-white p-2 rounded-xl hover:bg-white/[0.08] transition-colors"
+            title="Encrypted Video Call"
+          >
+            <Video className="w-4 h-4" />
+          </button>
+          <div className="relative">
+            <button 
+              onClick={() => setShowMenu(!showMenu)} 
+              className="text-gray-400 hover:text-white p-2 rounded-xl hover:bg-white/[0.08] transition-colors"
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
+            <ChatMenu 
+              isOpen={showMenu} 
+              onClose={() => setShowMenu(false)}
+              onClearChat={handleClearChat}
+              onWallpaperClick={() => setShowWallpaperModal(true)}
+            />
+          </div>
         </div>
       </header>
 
+      {/* Offline Status Alert Banner */}
+      {!isOnline && (
+        <div className="bg-amber-950/80 border-b border-amber-600/40 px-4 py-2 flex items-center justify-between text-xs text-amber-200 z-10 shadow-md">
+          <div className="flex items-center gap-2 min-w-0">
+            <WifiOff className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 animate-pulse" />
+            <span className="truncate">
+              <strong>Offline Mode Active:</strong> Messages will queue in Dexie and send automatically when connection returns.
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Pinned Message Banner */}
       {pinnedMessage && (
-        <div className="bg-[#1c1c1e]/90 backdrop-blur-md border-b border-purple-500/30 px-4 py-2.5 flex items-center justify-between text-xs z-10 shadow-md">
-          <div className="flex items-center gap-2 truncate">
-            <Pin className="w-4 h-4 text-purple-400 flex-shrink-0 rotate-45" />
-            <span className="font-semibold text-purple-400 flex-shrink-0">Pinned Message:</span>
-            <span className="text-gray-200 truncate">{pinnedMessage.text}</span>
+        <div className="bg-[#181820]/90 backdrop-blur-md border-b border-white/[0.08] px-4 py-2 flex items-center justify-between text-xs text-gray-300 z-10 shadow-sm animate-in fade-in">
+          <div className="flex items-center gap-2 min-w-0">
+            <Pin className="w-3.5 h-3.5 text-purple-400 flex-shrink-0" />
+            <span className="text-gray-400">Pinned:</span>
+            <span className="truncate font-medium text-white">{pinnedMessage.text}</span>
           </div>
-          <button
+          <button 
             onClick={() => setPinnedMessage(null)}
-            className="text-gray-400 hover:text-white flex-shrink-0 ml-3 p-1"
-            title="Unpin message"
+            className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-white/10"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* Messages Scroll Area */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-2">
+        {messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center py-14 px-4 space-y-3">
+            <div className="w-14 h-14 rounded-3xl bg-purple-600/10 border border-purple-500/20 flex items-center justify-center text-3xl shadow-inner">
+              💬
+            </div>
+            <div>
+              <p className="text-gray-200 text-sm font-bold font-display">Encrypted Channel Ready</p>
+              <p className="text-gray-400 text-xs max-w-xs mt-1 leading-relaxed">
+                Messages in this room are end-to-end encrypted and synced live in real-time.
+              </p>
+            </div>
+          </div>
+        ) : (
+          messages.map((msg) => (
+            <MessageBubble
+              key={msg.id}
+              {...msg}
+              onPin={() => setPinnedMessage({ id: msg.id, text: msg.text })}
+              onReply={() => handleReply(msg)}
+              onForward={() => setForwardingMsg(msg.text)}
+            />
+          ))
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Reply Preview Bar */}
+      {replyingTo && (
+        <div className="bg-[#181820] px-4 py-2 border-t border-white/[0.08] flex items-center justify-between z-10 animate-in slide-in-from-bottom-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Reply className="w-4 h-4 text-purple-400 flex-shrink-0" />
+            <div className="min-w-0 text-xs">
+              <span className="text-purple-300 font-semibold block">Replying to {replyingTo.senderName}</span>
+              <span className="text-gray-400 truncate block">{replyingTo.text}</span>
+            </div>
+          </div>
+          <button 
+            onClick={() => setReplyingTo(null)}
+            className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-white/10"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      {/* Chat Menu */}
-      {showMenu && <ChatMenu chatId={currentChatId} onClose={() => setShowMenu(false)} />}
-
-      {/* Messages area */}
-      <div className="flex-1 overflow-y-auto px-4 md:px-8 lg:px-12 py-6 space-y-4">
-        <div className="flex items-center justify-center">
-          <span className="bg-[#1c1c1e] text-gray-400 text-xs px-3 py-1 rounded-full">
-            Today
-          </span>
-        </div>
-        {messages.map((msg: any) => (
-          <MessageBubble
-            key={msg.id}
-            text={msg.text}
-            isSent={msg.isSent}
-            timestamp={msg.timestamp}
-            status={msg.status}
-            mediaUrl={msg.mediaUrl}
-            mediaType={msg.mediaType}
-            reactions={msg.reactions}
-            replyTo={msg.replyTo}
-            onReact={(emoji) => handleReact(msg.id, emoji)}
-            onReply={() => handleReply(msg)}
-            onForward={() => setForwardingMsg(msg.text)}
-            onPin={() => setPinnedMessage({ id: msg.id, text: msg.text })}
-          />
-        ))}
-      </div>
-
-      {/* Input area / Voice recording bar */}
-      <div className="bg-[#1c1c1e] px-4 md:px-6 lg:px-8 py-3 md:py-4 border-t border-gray-800">
-        {/* Quoted Reply Preview */}
-        {replyingTo && (
-          <div className="max-w-4xl mx-auto mb-2.5 flex items-center justify-between bg-[#2c2c2e] border-l-4 border-purple-500 rounded-r-xl px-4 py-2.5 shadow-md animate-in fade-in duration-150">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-7 h-7 rounded-full bg-purple-600/20 flex items-center justify-center text-purple-400 flex-shrink-0">
-                <Reply className="w-4 h-4" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-semibold text-purple-400 truncate">
-                  Replying to {replyingTo.senderName}
-                </p>
-                <p className="text-xs text-gray-300 truncate">
-                  {replyingTo.text}
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => setReplyingTo(null)}
-              className="text-gray-400 hover:text-white p-1 rounded-lg transition-colors ml-2 flex-shrink-0"
-              title="Cancel reply"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-
+      {/* Footer / Input Bar */}
+      <footer className="bg-[#16161d]/90 backdrop-blur-xl px-3 py-2.5 sm:px-4 sm:py-3 border-t border-white/[0.08] z-10">
         {isRecording ? (
-          <div className="flex items-center justify-between max-w-4xl mx-auto bg-[#2c2c2e] rounded-3xl px-4 py-3">
+          <div className="flex items-center justify-between gap-3 bg-[#22222d] border border-red-500/30 rounded-2xl px-4 py-2 shadow-lg">
             <div className="flex items-center gap-3">
-              <span className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-white font-mono text-sm">
-                Recording voice note... {Math.floor(recordingSeconds / 60)}:{(recordingSeconds % 60).toString().padStart(2, '0')}
+              <div className="w-3 h-3 rounded-full bg-red-500 animate-ping" />
+              <span className="text-red-400 font-mono text-sm font-semibold">
+                {Math.floor(recordingSeconds / 60)}:{(recordingSeconds % 60).toString().padStart(2, '0')}
               </span>
+              <span className="text-xs text-gray-300 font-medium">Recording voice note...</span>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => stopRecording(false)}
-                className="text-gray-400 hover:text-red-400 p-2 transition-colors"
+                className="p-2 text-gray-400 hover:text-red-400 rounded-xl hover:bg-white/10 transition-colors"
                 title="Cancel recording"
               >
-                <Trash2 className="w-5 h-5" />
+                <Trash2 className="w-4 h-4" />
               </button>
               <button
                 onClick={() => stopRecording(true)}
-                className="bg-purple-600 hover:bg-purple-700 text-white rounded-full p-2.5 transition-colors flex items-center gap-1.5 px-4 text-sm font-medium"
+                className="p-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl transition-all shadow-md active:scale-95"
                 title="Send voice note"
               >
                 <Send className="w-4 h-4" />
-                Send Voice Note
               </button>
             </div>
           </div>
         ) : (
-          <>
-            {!message && (
-              <div className="max-w-4xl mx-auto mb-2">
-                <p className="text-xs text-gray-500 text-center">
-                  🔒 Keep it respectful. All messages are encrypted with zero-knowledge protocol on anoNote.
-                </p>
-              </div>
-            )}
-            <div className="flex items-center gap-2 md:gap-3 max-w-4xl mx-auto">
-              <button className="text-gray-400 hover:text-white transition-colors">
-                <Smile className="w-6 h-6" />
-              </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="text-gray-400 hover:text-purple-300 p-2.5 rounded-2xl hover:bg-white/[0.08] transition-all flex-shrink-0 active:scale-95"
+              title="Attach Photo"
+            >
+              <Paperclip className="w-5 h-5" />
+            </button>
+            
+            <div className="flex-1 bg-[#1e1e28] rounded-2xl flex items-center px-4 py-2.5 border border-white/[0.08] focus-within:border-purple-500/60 transition-all shadow-inner">
               <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                ref={fileInputRef}
-                onChange={handleImageUpload}
-                className="hidden"
+                ref={textInputRef}
+                type="text"
+                placeholder={`Encrypted message to ${chatName}...`}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                className="bg-transparent text-white placeholder-gray-500 outline-none flex-1 text-sm md:text-base font-normal"
               />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="text-gray-400 hover:text-white transition-colors"
-                title="Upload image from camera or storage"
-              >
-                <Paperclip className="w-5 h-5 md:w-6 md:h-6" />
-              </button>
-              <div className="flex-1 flex items-center bg-[#2c2c2e] rounded-3xl px-4 py-2 md:py-3">
-                <input
-                  ref={textInputRef}
-                  type="text"
-                  placeholder={replyingTo ? `Reply to ${replyingTo.senderName}...` : "Type a message..."}
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && handleSend()}
-                  className="bg-transparent text-white placeholder-gray-500 outline-none flex-1 text-sm md:text-base"
-                />
-              </div>
-              <button
-                onClick={startRecording}
-                className="text-gray-400 hover:text-purple-400 transition-colors p-2"
-                title="Record voice note"
-              >
-                <Mic className="w-6 h-6" />
-              </button>
+            </div>
+
+            {message.trim() ? (
               <button
                 onClick={handleSend}
-                className="bg-purple-600 hover:bg-purple-700 text-white rounded-full p-2 md:p-3 transition-colors"
+                className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white p-2.5 rounded-2xl transition-all flex-shrink-0 shadow-lg shadow-purple-600/30 active:scale-95"
+                title="Send message"
               >
-                <Send className="w-5 h-5 md:w-6 md:h-6" />
+                <Send className="w-4 h-4" />
               </button>
-            </div>
-          </>
+            ) : (
+              <button
+                onClick={startRecording}
+                className="text-gray-400 hover:text-purple-300 p-2.5 rounded-2xl hover:bg-white/[0.08] transition-all flex-shrink-0 active:scale-95"
+                title="Hold or tap to record voice note"
+              >
+                <Mic className="w-5 h-5" />
+              </button>
+            )}
+          </div>
         )}
-      </div>
+      </footer>
 
-      {showWallpaperModal && (
-        <WallpaperModal
-          currentWallpaper={wallpaper}
-          onSelect={(wp) => setWallpaper(wp)}
-          onClose={() => setShowWallpaperModal(false)}
-        />
-      )}
-
+      {/* Forward Modal */}
       {forwardingMsg && (
         <ForwardMessageModal
-          messageText={forwardingMsg}
-          onForward={handleForwardMessage}
+          isOpen={!!forwardingMsg}
           onClose={() => setForwardingMsg(null)}
+          onForward={handleForwardMessage}
         />
       )}
+
+      {/* Wallpaper Modal */}
+      <WallpaperModal
+        isOpen={showWallpaperModal}
+        onClose={() => setShowWallpaperModal(false)}
+        currentWallpaper={wallpaper}
+        onSelectWallpaper={(w) => setWallpaper(w)}
+      />
     </div>
   );
 }

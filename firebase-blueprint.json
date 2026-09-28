@@ -1,0 +1,59 @@
+{
+  "entities": {
+    "User": {
+      "fields": {
+        "id": { "type": "string" },
+        "anonId": { "type": "string" },
+        "name": { "type": "string" },
+        "avatar": { "type": "string" },
+        "about": { "type": "string" },
+        "isVerified": { "type": "boolean" },
+        "createdAt": { "type": "string" },
+        "lastActive": { "type": "string" }
+      }
+    },
+    "Chat": {
+      "fields": {
+        "id": { "type": "string" },
+        "participants": { "type": "array" },
+        "participantData": { "type": "map" },
+        "lastMessage": { "type": "string" },
+        "lastMessageTimestamp": { "type": "string" },
+        "lastSenderId": { "type": "string" },
+        "unreadCount": { "type": "map" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "Message": {
+      "fields": {
+        "id": { "type": "string" },
+        "text": { "type": "string" },
+        "senderAnonId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "senderAvatar": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "mediaType": { "type": "string" },
+        "mediaUrl": { "type": "string" },
+        "status": { "type": "string" }
+      }
+    },
+    "Draft": {
+      "fields": {
+        "chatId": { "type": "string" },
+        "userAnonId": { "type": "string" },
+        "text": { "type": "string" },
+        "replyToId": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "Broadcast": {
+      "fields": {
+        "id": { "type": "string" },
+        "message": { "type": "string" },
+        "author": { "type": "string" },
+        "timestamp": { "type": "string" }
+      }
+    }
+  }
+}

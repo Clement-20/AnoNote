@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { syncUserToFirestore } from "../services/chatService";
 
 export interface UserAccount {
   id: string;
@@ -24,7 +25,6 @@ interface AuthContextType {
   getConnectUrl: (anonId?: string) => string;
 }
 
-// Registry helper for guaranteed unique Anon IDs
 const CLAIMED_IDS_KEY = "anonote_claimed_anon_ids";
 
 function getClaimedIds(): Set<string> {
@@ -37,7 +37,7 @@ function getClaimedIds(): Set<string> {
   } catch (e) {
     console.error(e);
   }
-  return new Set(["Anon #3847", "Anon #7291", "Anon #5612", "Anon #9204", "Anon #4156", "Anon #8873", "Anon #2490"]);
+  return new Set();
 }
 
 function claimAnonId(id: string) {
@@ -52,7 +52,6 @@ function claimAnonId(id: string) {
 
 export function generateUniqueAnonId(): string {
   const claimed = getClaimedIds();
-  // Try generating 4-digit unique ID, if saturated move to 5 or 6 digits
   for (let i = 0; i < 500; i++) {
     const num = Math.floor(1000 + Math.random() * 9000);
     const candidate = `Anon #${num}`;
@@ -67,7 +66,6 @@ export function generateUniqueAnonId(): string {
 }
 
 export function getShareConnectUrl(anonId: string): string {
-  // Use https://anonote-three.vercel.app as the canonical live link unless user is on custom domain
   const isInternal = typeof window !== "undefined" && (
     window.location.hostname.includes("run.app") || 
     window.location.hostname.includes("localhost") ||
@@ -101,7 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("Failed to load user from localStorage", e);
     }
     
-    // Brand new user gets their OWN brand new unique anonymous ID
+    // Brand new real user gets unique anonymous ID
     const uniqueId = generateUniqueAnonId();
     const avatars = ["🎭", "🕶️", "👤", "🌑", "💭", "🔮", "🎪", "🌙", "✨", "🛡️"];
     const randomAvatar = avatars[Math.floor(Math.random() * avatars.length)];
@@ -122,7 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const saved = localStorage.getItem("anonote_saved_accounts");
       if (saved) {
         const list = JSON.parse(saved);
-        if (Array.isArray(list) && list.length > 0) return list;
+        if (Array.isArray(list)) return list;
       }
     } catch (e) {
       console.error("Failed to load saved accounts", e);
@@ -130,19 +128,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return [];
   });
 
-  // Keep localStorage & claimed list in sync
+  // Sync with Firestore & localStorage
   useEffect(() => {
     localStorage.setItem("anonote_current_user", JSON.stringify(currentUser));
     localStorage.setItem("ghost_note_account_name", currentUser.name);
     localStorage.setItem("anon_is_verified", currentUser.isVerified ? "true" : "false");
     claimAnonId(currentUser.anonId);
+    syncUserToFirestore(currentUser);
   }, [currentUser]);
 
   useEffect(() => {
-    if (savedAccounts.length > 0) {
-      localStorage.setItem("anonote_saved_accounts", JSON.stringify(savedAccounts));
-      savedAccounts.forEach((acc) => claimAnonId(acc.anonId));
-    }
+    localStorage.setItem("anonote_saved_accounts", JSON.stringify(savedAccounts));
+    savedAccounts.forEach((acc) => claimAnonId(acc.anonId));
   }, [savedAccounts]);
 
   const normalizeAnonId = (raw: string) => {
@@ -157,7 +154,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = (rawAnonId: string, pin?: string): { success: boolean; error?: string } => {
     const formattedId = normalizeAnonId(rawAnonId);
     
-    // Check if account is in saved list with matching pin
     const existing = savedAccounts.find(
       (a) => a.anonId.toLowerCase() === formattedId.toLowerCase() || a.name.toLowerCase() === formattedId.toLowerCase()
     );
@@ -171,7 +167,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { success: true };
     }
 
-    // Log in as new/unique identity
     claimAnonId(formattedId);
     const newUser: UserAccount = {
       id: `u_${Date.now()}`,
@@ -192,7 +187,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = (rawAnonId: string, avatar: string, pin?: string): { success: boolean; error?: string } => {
     const formattedId = normalizeAnonId(rawAnonId);
     
-    // Check if this ID belongs to a different user in saved accounts
     const isTaken = savedAccounts.some((a) => a.anonId.toLowerCase() === formattedId.toLowerCase() && a.id !== currentUser.id);
     if (isTaken) {
       return { success: false, error: `Anon ID ${formattedId} is already active on this device. Please log into it or choose another ID.` };
@@ -215,7 +209,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { success: true };
   };
 
-  // Zero-friction instant account creation: generates guaranteed unique ID
   const quickStart = (): UserAccount => {
     const uniqueId = generateUniqueAnonId();
     const avatars = ["🎭", "🕶️", "👤", "🌑", "💭", "🔮", "🎪", "🌙", "✨", "🛡️"];
