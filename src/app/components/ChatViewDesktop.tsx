@@ -551,6 +551,7 @@ export function ChatViewDesktop() {
         isOpen={showWallpaperModal}
         onClose={() => setShowWallpaperModal(false)}
         currentWallpaper={wallpaper}
+        onSelect={(w) => setWallpaper(w)}
         onSelectWallpaper={(w) => setWallpaper(w)}
       />
     </div>
