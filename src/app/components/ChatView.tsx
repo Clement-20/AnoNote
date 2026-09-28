@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router";
-import { ArrowLeft, MoreVertical, Send, Paperclip, Smile, Phone, Video } from "lucide-react";
+import { ArrowLeft, MoreVertical, Send, Paperclip, Smile, Phone, Video, Reply, X } from "lucide-react";
 import { MessageBubble } from "./MessageBubble";
 import { VerifiedBadge } from "./VerifiedBadge";
 
@@ -90,6 +90,8 @@ export function ChatView() {
   const navigate = useNavigate();
   const [message, setMessage] = useState("");
   const [messagesMap, setMessagesMap] = useState<Record<string, any[]>>(messagesData);
+  const [replyingTo, setReplyingTo] = useState<{ id: string; text: string; senderName: string } | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const currentChatId = id || "1";
   const messages = messagesMap[currentChatId] || [];
@@ -107,6 +109,15 @@ export function ChatView() {
     });
   }, [currentChatId]);
 
+  const handleReply = (msg: any) => {
+    setReplyingTo({
+      id: msg.id,
+      text: msg.text,
+      senderName: msg.isSent ? "You" : chatName,
+    });
+    inputRef.current?.focus();
+  };
+
   const handleSend = () => {
     if (message.trim()) {
       const newMessage = {
@@ -115,12 +126,18 @@ export function ChatView() {
         isSent: true,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         status: "delivered",
+        replyTo: replyingTo ? {
+          id: replyingTo.id,
+          text: replyingTo.text,
+          senderName: replyingTo.senderName,
+        } : undefined,
       };
       setMessagesMap(prev => ({
         ...prev,
         [currentChatId]: [...(prev[currentChatId] || messages), newMessage]
       }));
       setMessage("");
+      setReplyingTo(null);
     }
   };
 
@@ -208,21 +225,50 @@ export function ChatView() {
             timestamp={msg.timestamp}
             status={msg.status}
             reactions={msg.reactions}
+            replyTo={msg.replyTo}
             onReact={(emoji) => handleReact(msg.id, emoji)}
+            onReply={() => handleReply(msg)}
           />
         ))}
       </div>
 
       {/* Input area */}
       <div className="bg-[#1c1c1e] px-4 py-3 border-t border-gray-800">
+        {/* Quoted Reply Preview */}
+        {replyingTo && (
+          <div className="mb-2 flex items-center justify-between bg-[#2c2c2e] border-l-4 border-purple-500 rounded-r-xl px-3.5 py-2 shadow-md animate-in fade-in duration-150">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-6 h-6 rounded-full bg-purple-600/20 flex items-center justify-center text-purple-400 flex-shrink-0">
+                <Reply className="w-3.5 h-3.5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-purple-400 truncate">
+                  Replying to {replyingTo.senderName}
+                </p>
+                <p className="text-xs text-gray-300 truncate">
+                  {replyingTo.text}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setReplyingTo(null)}
+              className="text-gray-400 hover:text-white p-1 rounded-lg transition-colors ml-2 flex-shrink-0"
+              title="Cancel reply"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         <div className="flex items-center gap-2">
           <button className="text-gray-400 hover:text-white transition-colors">
             <Smile className="w-6 h-6" />
           </button>
           <div className="flex-1 flex items-center bg-[#2c2c2e] rounded-3xl px-4 py-2">
             <input
+              ref={inputRef}
               type="text"
-              placeholder="Type a message..."
+              placeholder={replyingTo ? `Reply to ${replyingTo.senderName}...` : "Type a message..."}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyPress={(e) => e.key === "Enter" && handleSend()}

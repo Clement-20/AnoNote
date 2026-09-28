@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router";
-import { ArrowLeft, MoreVertical, Send, Paperclip, Smile, Phone, Video } from "lucide-react";
+import { ArrowLeft, MoreVertical, Send, Paperclip, Smile, Phone, Video, Reply, X } from "lucide-react";
 import { GroupMessageBubble } from "./GroupMessageBubble";
 import { GroupChatMenu } from "./GroupChatMenu";
 
@@ -30,10 +30,21 @@ export function GroupChatView() {
   const [message, setMessage] = useState("");
   const [showMenu, setShowMenu] = useState(false);
   const [messagesMap, setMessagesMap] = useState<Record<string, any[]>>(groupMessagesData);
+  const [replyingTo, setReplyingTo] = useState<{ id: string; text: string; senderName: string } | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const currentGroupId = id || "g1";
   const messages = messagesMap[currentGroupId] || [];
   const group = groupInfo[currentGroupId] || groupInfo["g1"];
+
+  const handleReply = (msg: any) => {
+    setReplyingTo({
+      id: msg.id,
+      text: msg.text,
+      senderName: msg.isSent ? "You" : msg.senderName,
+    });
+    inputRef.current?.focus();
+  };
 
   const handleSend = () => {
     if (message.trim()) {
@@ -45,12 +56,18 @@ export function GroupChatView() {
         senderAvatar: "🎭",
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         isSent: true,
+        replyTo: replyingTo ? {
+          id: replyingTo.id,
+          text: replyingTo.text,
+          senderName: replyingTo.senderName,
+        } : undefined,
       };
       setMessagesMap(prev => ({
         ...prev,
         [currentGroupId]: [...(prev[currentGroupId] || messages), newMessage]
       }));
       setMessage("");
+      setReplyingTo(null);
     }
   };
 
@@ -111,7 +128,7 @@ export function GroupChatView() {
           </button>
           <button
             onClick={() => setShowMenu(!showMenu)}
-            className="text-gray-400 hover:text-white transition-colors relative"
+            className="text-gray-400 hover:text-white transition-colors"
           >
             <MoreVertical className="w-5 h-5 md:w-6 md:h-6" />
           </button>
@@ -119,7 +136,12 @@ export function GroupChatView() {
       </header>
 
       {/* Group Chat Menu */}
-      {showMenu && <GroupChatMenu groupId={currentGroupId} onClose={() => setShowMenu(false)} />}
+      {showMenu && (
+        <GroupChatMenu
+          groupId={currentGroupId}
+          onClose={() => setShowMenu(false)}
+        />
+      )}
 
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto px-4 md:px-8 lg:px-12 py-6 space-y-4">
@@ -137,14 +159,42 @@ export function GroupChatView() {
             isSent={msg.isSent}
             timestamp={msg.timestamp}
             reactions={msg.reactions}
+            replyTo={msg.replyTo}
             onReact={(emoji) => handleReact(msg.id, emoji)}
+            onReply={() => handleReply(msg)}
           />
         ))}
       </div>
 
       {/* Input area */}
       <div className="bg-[#1c1c1e] px-4 md:px-6 lg:px-8 py-3 md:py-4 border-t border-gray-800">
-        {!message && (
+        {/* Quoted Reply Preview */}
+        {replyingTo && (
+          <div className="max-w-4xl mx-auto mb-2.5 flex items-center justify-between bg-[#2c2c2e] border-l-4 border-purple-500 rounded-r-xl px-4 py-2.5 shadow-md animate-in fade-in duration-150">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-7 h-7 rounded-full bg-purple-600/20 flex items-center justify-center text-purple-400 flex-shrink-0">
+                <Reply className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-purple-400 truncate">
+                  Replying to {replyingTo.senderName}
+                </p>
+                <p className="text-xs text-gray-300 truncate">
+                  {replyingTo.text}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setReplyingTo(null)}
+              className="text-gray-400 hover:text-white p-1 rounded-lg transition-colors ml-2 flex-shrink-0"
+              title="Cancel reply"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {!message && !replyingTo && (
           <div className="max-w-4xl mx-auto mb-2">
             <p className="text-xs text-gray-500 text-center">
               🔒 Keep it respectful. All group messages are end-to-end encrypted on anoNote.
@@ -157,8 +207,9 @@ export function GroupChatView() {
           </button>
           <div className="flex-1 flex items-center bg-[#2c2c2e] rounded-3xl px-4 py-2 md:py-3">
             <input
+              ref={inputRef}
               type="text"
-              placeholder="Type a message..."
+              placeholder={replyingTo ? `Reply to ${replyingTo.senderName}...` : "Type a message..."}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyPress={(e) => e.key === "Enter" && handleSend()}

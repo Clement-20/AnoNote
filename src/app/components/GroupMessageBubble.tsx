@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { SmilePlus, Share2, Pin } from "lucide-react";
+import { SmilePlus, Share2, Pin, Reply } from "lucide-react";
 
 interface GroupMessageBubbleProps {
   text: string;
@@ -11,9 +11,15 @@ interface GroupMessageBubbleProps {
   mediaUrl?: string;
   mediaType?: 'image' | 'audio' | 'file';
   reactions?: { [emoji: string]: string[] | number };
+  replyTo?: {
+    id?: string;
+    text: string;
+    senderName?: string;
+  };
   onReact?: (emoji: string) => void;
   onForward?: () => void;
   onPin?: () => void;
+  onReply?: () => void;
 }
 
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
@@ -28,9 +34,11 @@ export function GroupMessageBubble({
   mediaUrl,
   mediaType = 'image',
   reactions = {},
+  replyTo,
   onReact,
   onForward,
   onPin,
+  onReply,
 }: GroupMessageBubbleProps) {
   const [showPicker, setShowPicker] = useState(false);
 
@@ -44,10 +52,10 @@ export function GroupMessageBubble({
       )}
 
       <div className={`flex flex-col ${isSent ? "items-end" : "items-start"} max-w-[70%] relative`}>
-        {/* Quick reaction, forward & pin button on hover / trigger */}
+        {/* Quick action toolbar on hover */}
         <div
           className={`absolute top-0 ${
-            isSent ? "-left-28" : "-right-28"
+            isSent ? "-left-36" : "-right-36"
           } hidden group-hover:flex items-center gap-1 bg-[#1c1c1e] border border-gray-800 rounded-full px-2 py-1 shadow-lg z-10`}
         >
           {QUICK_REACTIONS.slice(0, 3).map((emoji) => (
@@ -68,15 +76,22 @@ export function GroupMessageBubble({
             <SmilePlus className="w-4 h-4" />
           </button>
           <button
-            onClick={onForward}
+            onClick={onReply}
             className="text-gray-400 hover:text-purple-400 transition-colors p-0.5 ml-0.5 border-l border-gray-700 pl-1"
+            title="Reply to message"
+          >
+            <Reply className="w-4 h-4" />
+          </button>
+          <button
+            onClick={onForward}
+            className="text-gray-400 hover:text-purple-400 transition-colors p-0.5"
             title="Forward message"
           >
             <Share2 className="w-4 h-4" />
           </button>
           <button
             onClick={onPin}
-            className="text-gray-400 hover:text-purple-400 transition-colors p-0.5 ml-0.5 border-l border-gray-700 pl-1"
+            className="text-gray-400 hover:text-purple-400 transition-colors p-0.5"
             title="Pin message"
           >
             <Pin className="w-4 h-4" />
@@ -114,12 +129,30 @@ export function GroupMessageBubble({
 
         {/* Message bubble */}
         <div
-          className={`rounded-2xl px-4 py-2 ${
+          onDoubleClick={onReply}
+          className={`rounded-2xl px-4 py-2 select-text ${
             isSent
               ? "bg-purple-600 text-white rounded-br-sm"
               : "bg-[#2c2c2e] text-white rounded-bl-sm"
           }`}
         >
+          {/* Quoted preview if this message is a reply */}
+          {replyTo && (
+            <div
+              className={`mb-2 px-3 py-1.5 rounded-lg border-l-4 border-purple-300 ${
+                isSent ? "bg-black/25 text-purple-100" : "bg-black/40 text-purple-200"
+              } text-xs flex flex-col`}
+            >
+              <div className="flex items-center gap-1 font-semibold text-[11px] text-purple-200 mb-0.5">
+                <Reply className="w-3 h-3" />
+                <span>{replyTo.senderName || "Original message"}</span>
+              </div>
+              <p className="truncate text-gray-200/90 text-xs italic">
+                {replyTo.text}
+              </p>
+            </div>
+          )}
+
           {mediaUrl && mediaType === 'audio' ? (
             <div className="mb-2 w-64 max-w-full">
               <audio controls src={mediaUrl} className="w-full h-10 accent-purple-500" />

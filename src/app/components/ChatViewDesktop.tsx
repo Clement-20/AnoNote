@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router";
-import { ArrowLeft, MoreVertical, Send, Paperclip, Smile, Phone, Video, Palette, Mic, Trash2, Pin, X } from "lucide-react";
+import { ArrowLeft, MoreVertical, Send, Paperclip, Smile, Phone, Video, Palette, Mic, Trash2, Pin, X, Reply } from "lucide-react";
 import { MessageBubble } from "./MessageBubble";
 import { ChatMenu } from "./ChatMenu";
 import { ForwardMessageModal } from "./ForwardMessageModal";
@@ -58,6 +58,8 @@ export function ChatViewDesktop() {
   const [showWallpaperModal, setShowWallpaperModal] = useState(false);
   const [forwardingMsg, setForwardingMsg] = useState<string | null>(null);
   const [pinnedMessage, setPinnedMessage] = useState<{ id: string; text: string } | null>(null);
+  const [replyingTo, setReplyingTo] = useState<{ id: string; text: string; senderName: string } | null>(null);
+  const textInputRef = useRef<HTMLInputElement>(null);
 
   // Voice recording states
   const [isRecording, setIsRecording] = useState(false);
@@ -94,6 +96,15 @@ export function ChatViewDesktop() {
     });
   }, [currentChatId]);
 
+  const handleReply = (msg: any) => {
+    setReplyingTo({
+      id: msg.id,
+      text: msg.text,
+      senderName: msg.isSent ? "You" : chatName,
+    });
+    textInputRef.current?.focus();
+  };
+
   const handleSend = () => {
     if (message.trim()) {
       const newMessage = {
@@ -102,12 +113,18 @@ export function ChatViewDesktop() {
         isSent: true,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         status: "delivered",
+        replyTo: replyingTo ? {
+          id: replyingTo.id,
+          text: replyingTo.text,
+          senderName: replyingTo.senderName,
+        } : undefined,
       };
       setMessagesMap(prev => ({
         ...prev,
         [currentChatId]: [...(prev[currentChatId] || messages), newMessage]
       }));
       setMessage("");
+      setReplyingTo(null);
     }
   };
 
@@ -340,7 +357,9 @@ export function ChatViewDesktop() {
             mediaUrl={msg.mediaUrl}
             mediaType={msg.mediaType}
             reactions={msg.reactions}
+            replyTo={msg.replyTo}
             onReact={(emoji) => handleReact(msg.id, emoji)}
+            onReply={() => handleReply(msg)}
             onForward={() => setForwardingMsg(msg.text)}
             onPin={() => setPinnedMessage({ id: msg.id, text: msg.text })}
           />
@@ -349,6 +368,32 @@ export function ChatViewDesktop() {
 
       {/* Input area / Voice recording bar */}
       <div className="bg-[#1c1c1e] px-4 md:px-6 lg:px-8 py-3 md:py-4 border-t border-gray-800">
+        {/* Quoted Reply Preview */}
+        {replyingTo && (
+          <div className="max-w-4xl mx-auto mb-2.5 flex items-center justify-between bg-[#2c2c2e] border-l-4 border-purple-500 rounded-r-xl px-4 py-2.5 shadow-md animate-in fade-in duration-150">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-7 h-7 rounded-full bg-purple-600/20 flex items-center justify-center text-purple-400 flex-shrink-0">
+                <Reply className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-purple-400 truncate">
+                  Replying to {replyingTo.senderName}
+                </p>
+                <p className="text-xs text-gray-300 truncate">
+                  {replyingTo.text}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setReplyingTo(null)}
+              className="text-gray-400 hover:text-white p-1 rounded-lg transition-colors ml-2 flex-shrink-0"
+              title="Cancel reply"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         {isRecording ? (
           <div className="flex items-center justify-between max-w-4xl mx-auto bg-[#2c2c2e] rounded-3xl px-4 py-3">
             <div className="flex items-center gap-3">
@@ -405,8 +450,9 @@ export function ChatViewDesktop() {
               </button>
               <div className="flex-1 flex items-center bg-[#2c2c2e] rounded-3xl px-4 py-2 md:py-3">
                 <input
+                  ref={textInputRef}
                   type="text"
-                  placeholder="Type a message..."
+                  placeholder={replyingTo ? `Reply to ${replyingTo.senderName}...` : "Type a message..."}
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   onKeyPress={(e) => e.key === "Enter" && handleSend()}
