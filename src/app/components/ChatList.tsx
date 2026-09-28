@@ -90,7 +90,7 @@ const initialChats = [
 export function ChatList() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { currentUser, savedAccounts, switchAccount } = useAuth();
+  const { currentUser, savedAccounts, switchAccount, getConnectUrl } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [showConnectModal, setShowConnectModal] = useState(false);
@@ -164,8 +164,7 @@ export function ChatList() {
 
   const handleCopyMyLink = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const origin = typeof window !== "undefined" && window.location.origin ? window.location.origin : "https://anoNote.icepab.name.ng";
-    const url = `${origin}/?connect=${encodeURIComponent(currentUser.anonId)}`;
+    const url = getConnectUrl(currentUser.anonId);
     navigator.clipboard.writeText(url);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);

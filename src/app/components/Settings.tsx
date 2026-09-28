@@ -30,14 +30,13 @@ import { ConnectModal } from "./ConnectModal";
 
 export function Settings() {
   const navigate = useNavigate();
-  const { currentUser, savedAccounts, switchAccount, logout } = useAuth();
+  const { currentUser, savedAccounts, switchAccount, logout, getConnectUrl } = useAuth();
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
   const handleCopyLink = () => {
-    const origin = typeof window !== "undefined" && window.location.origin ? window.location.origin : "https://anoNote.icepab.name.ng";
-    const url = `${origin}/?connect=${encodeURIComponent(currentUser.anonId)}`;
+    const url = getConnectUrl(currentUser.anonId);
     navigator.clipboard.writeText(url);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);

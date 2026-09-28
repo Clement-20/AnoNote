@@ -4,11 +4,10 @@ import { Copy, Share2, QrCode, Check, Sparkles } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
 export function InviteSettings() {
-  const { currentUser } = useAuth();
+  const { currentUser, getConnectUrl } = useAuth();
   const [copied, setCopied] = useState(false);
 
-  const origin = typeof window !== "undefined" && window.location.origin ? window.location.origin : "https://anoNote.icepab.name.ng";
-  const inviteLink = `${origin}/?connect=${encodeURIComponent(currentUser.anonId)}`;
+  const inviteLink = getConnectUrl(currentUser.anonId);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(inviteLink);

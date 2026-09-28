@@ -8,7 +8,7 @@ import { ConnectModal } from "./ConnectModal";
 
 export function Profile() {
   const navigate = useNavigate();
-  const { currentUser, updateProfile } = useAuth();
+  const { currentUser, updateProfile, getConnectUrl } = useAuth();
 
   const [about, setAbout] = useState(() => localStorage.getItem("ghost_note_account_about") || "Anonymous and secure on anoNote");
   const [showVerificationModal, setShowVerificationModal] = useState(false);
@@ -37,8 +37,7 @@ export function Profile() {
   };
 
   const handleCopyLink = () => {
-    const origin = typeof window !== "undefined" && window.location.origin ? window.location.origin : "https://anoNote.icepab.name.ng";
-    const url = `${origin}/?connect=${encodeURIComponent(currentUser.anonId)}`;
+    const url = getConnectUrl(currentUser.anonId);
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);

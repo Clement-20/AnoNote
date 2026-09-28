@@ -20,7 +20,7 @@ const initialContacts = [
 
 export function NewChat() {
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
+  const { currentUser, getConnectUrl } = useAuth();
   const [search, setSearch] = useState("");
   const [customAnonId, setCustomAnonId] = useState("");
   const [showConnectModal, setShowConnectModal] = useState(false);
@@ -36,8 +36,7 @@ export function NewChat() {
   );
 
   const handleCopyLink = () => {
-    const origin = typeof window !== "undefined" && window.location.origin ? window.location.origin : "https://anoNote.icepab.name.ng";
-    const url = `${origin}/?connect=${encodeURIComponent(currentUser.anonId)}`;
+    const url = getConnectUrl(currentUser.anonId);
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);

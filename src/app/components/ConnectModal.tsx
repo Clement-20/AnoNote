@@ -22,7 +22,7 @@ interface ConnectModalProps {
 
 export function ConnectModal({ isOpen, onClose, initialPeerId }: ConnectModalProps) {
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
+  const { currentUser, getConnectUrl } = useAuth();
   const [peerInput, setPeerInput] = useState(initialPeerId || "");
   const [copied, setCopied] = useState(false);
   const [showQR, setShowQR] = useState(false);
@@ -30,12 +30,7 @@ export function ConnectModal({ isOpen, onClose, initialPeerId }: ConnectModalPro
 
   if (!isOpen) return null;
 
-  const currentOrigin =
-    typeof window !== "undefined" && window.location.origin
-      ? window.location.origin
-      : "https://anoNote.icepab.name.ng";
-
-  const connectUrl = `${currentOrigin}/?connect=${encodeURIComponent(currentUser.anonId)}`;
+  const connectUrl = getConnectUrl(currentUser.anonId);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(connectUrl);

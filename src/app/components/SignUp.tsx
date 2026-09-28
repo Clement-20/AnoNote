@@ -16,19 +16,19 @@ import { useAuth } from "../context/AuthContext";
 
 export function SignUp() {
   const navigate = useNavigate();
-  const { signUp, quickStart } = useAuth();
+  const { signUp, quickStart, generateUniqueId } = useAuth();
 
   const [showPassword, setShowPassword] = useState(false);
   const [pin, setPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
   const [avatar, setAvatar] = useState("🎭");
-  const [anonId, setAnonId] = useState(`Anon #${Math.floor(1000 + Math.random() * 9000)}`);
+  const [anonId, setAnonId] = useState(() => generateUniqueId());
   const [error, setError] = useState<string | null>(null);
 
   const avatarOptions = ["🎭", "🕶️", "👤", "🌑", "💭", "🔮", "🎪", "🌙", "✨", "🛡️", "🚀", "⚡", "🔥", "💎", "🦁"];
 
   const handleRegenerateId = () => {
-    setAnonId(`Anon #${Math.floor(1000 + Math.random() * 9000)}`);
+    setAnonId(generateUniqueId());
   };
 
   const handleInstantQuickStart = () => {
