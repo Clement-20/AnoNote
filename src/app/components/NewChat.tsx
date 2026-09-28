@@ -95,6 +95,31 @@ export function NewChat() {
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto">
+        {/* Create Group Chat Action */}
+        <div className="p-4 border-b border-gray-800 bg-[#16161a]">
+          <button
+            onClick={() => navigate("/new-group")}
+            className="w-full flex items-center justify-between p-3.5 bg-gradient-to-r from-purple-900/30 to-indigo-900/30 hover:from-purple-900/50 hover:to-indigo-900/50 border border-purple-500/40 rounded-2xl transition-all shadow-md active:scale-98 group text-left"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 text-white flex items-center justify-center text-xl shadow-lg shadow-purple-600/30">
+                👥
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-white group-hover:text-purple-300 transition-colors">
+                  Create New Encrypted Group
+                </h3>
+                <p className="text-xs text-gray-400">
+                  Group chat with multiple anonymous peers in real-time
+                </p>
+              </div>
+            </div>
+            <span className="px-3 py-1.5 bg-purple-600 text-white font-bold text-xs rounded-xl shadow-sm">
+              New Group
+            </span>
+          </button>
+        </div>
+
         {/* Connect With Any Anon ID */}
         <div className="p-4 border-b border-gray-800 bg-[#141416]">
           <label className="text-xs font-semibold text-gray-300 uppercase tracking-wider block mb-2">

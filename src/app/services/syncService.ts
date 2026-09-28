@@ -8,7 +8,6 @@ const queueChangeListeners: Set<QueueChangeListener> = new Set();
 
 export function subscribeToQueueCount(listener: QueueChangeListener) {
   queueChangeListeners.add(listener);
-  // Initial notify
   getQueuedCount().then((count) => listener(count));
   return () => {
     queueChangeListeners.delete(listener);
@@ -31,6 +30,16 @@ function notifyQueueChange() {
 
 let isProcessingQueue = false;
 
+// Helper: promise with timeout to prevent Firestore network hang
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMsg: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(errorMsg)), timeoutMs)
+    ),
+  ]);
+}
+
 // Process the Dexie outgoing message queue and push to Firestore
 export async function processOutgoingQueue(): Promise<void> {
   if (isProcessingQueue) return;
@@ -39,6 +48,14 @@ export async function processOutgoingQueue(): Promise<void> {
   isProcessingQueue = true;
 
   try {
+    // Reset any messages that might have been stuck in 'sending' state
+    const stuckItems = await offlineDb.outgoingQueue.where("status").equals("sending").toArray();
+    for (const stuck of stuckItems) {
+      if (stuck.id) {
+        await offlineDb.outgoingQueue.update(stuck.id, { status: "queued" });
+      }
+    }
+
     const queuedItems = await offlineDb.outgoingQueue
       .where("status")
       .anyOf(["queued", "failed"])
@@ -53,29 +70,33 @@ export async function processOutgoingQueue(): Promise<void> {
       try {
         const messagesRef = collection(db, "chats", item.chatId, "messages");
         
-        // Push directly to Firestore cloud collection
-        const docRef = await addDoc(messagesRef, {
-          text: item.text,
-          senderAnonId: item.senderAnonId,
-          senderName: item.senderName,
-          senderAvatar: item.senderAvatar,
-          timestamp: item.timestamp,
-          createdAt: serverTimestamp(),
-          mediaType: item.mediaType || null,
-          mediaUrl: item.mediaUrl || null,
-          status: "delivered",
-        });
+        // Push directly to Firestore cloud collection with 8s timeout to avoid indefinite hanging
+        const docRef = await withTimeout(
+          addDoc(messagesRef, {
+            text: item.text,
+            senderAnonId: item.senderAnonId,
+            senderName: item.senderName,
+            senderAvatar: item.senderAvatar,
+            timestamp: item.timestamp,
+            createdAt: serverTimestamp(),
+            mediaType: item.mediaType || null,
+            mediaUrl: item.mediaUrl || null,
+            status: "delivered",
+          }),
+          8000,
+          "Firestore write timeout"
+        );
 
         // Update parent chat doc
         const chatRef = doc(db, "chats", item.chatId);
         const nowIso = new Date().toISOString();
-        await updateDoc(chatRef, {
+        updateDoc(chatRef, {
           lastMessage: item.text || `[${item.mediaType || "Media"}]`,
           lastMessageTimestamp: nowIso,
           lastSenderId: item.senderAnonId,
           updatedAt: nowIso,
         }).catch(() => {
-          // Ignore parent update errors
+          // Non-critical
         });
 
         // Update local Dexie cached message to delivered state with official Firestore ID
@@ -99,14 +120,13 @@ export async function processOutgoingQueue(): Promise<void> {
         await offlineDb.outgoingQueue.delete(item.id);
         notifyQueueChange();
       } catch (err: any) {
-        console.warn("[Dexie Sync] Failed to send queued message:", err);
+        console.warn("[Dexie Sync] Could not sync message to Firestore right now:", err);
         await offlineDb.outgoingQueue.update(item.id, {
           status: "failed",
           retryCount: (item.retryCount || 0) + 1,
           error: err?.message || "Sync failed",
         });
         notifyQueueChange();
-        // If network error, stop processing further items in this run
         if (typeof navigator !== "undefined" && !navigator.onLine) {
           break;
         }
@@ -147,7 +167,7 @@ export async function queueAndSendMessage(
     status: "queued",
   };
 
-  // 1. Cache immediately in Dexie for immediate UI display
+  // 1. Cache immediately in Dexie for instant UI display
   await offlineDb.cachedMessages.put({
     id: localId,
     chatId,
@@ -176,7 +196,6 @@ export async function queueAndSendMessage(
 // Auto-sync initialization: listen for online event & periodic background sync
 if (typeof window !== "undefined") {
   window.addEventListener("online", () => {
-    console.log("[Dexie Sync] Online detected. Flushing outgoing queue...");
     processOutgoingQueue();
   });
 

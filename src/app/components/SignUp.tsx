@@ -25,29 +25,47 @@ export function SignUp() {
   const [anonId, setAnonId] = useState(() => generateUniqueId());
   const [error, setError] = useState<string | null>(null);
 
+  const [isLoading, setIsLoading] = useState(false);
+
   const avatarOptions = ["🎭", "🕶️", "👤", "🌑", "💭", "🔮", "🎪", "🌙", "✨", "🛡️", "🚀", "⚡", "🔥", "💎", "🦁"];
 
   const handleRegenerateId = () => {
     setAnonId(generateUniqueId());
+    setError(null);
   };
 
-  const handleInstantQuickStart = () => {
-    quickStart();
-    navigate("/");
+  const handleInstantQuickStart = async () => {
+    setIsLoading(true);
+    try {
+      await quickStart();
+      navigate("/");
+    } catch {
+      setError("Failed to generate quick identity.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleSignUp = (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (pin && pin !== confirmPin) {
       setError("PINs do not match. Please verify.");
       return;
     }
 
-    const res = signUp(anonId, avatar, pin || undefined);
-    if (res.success) {
-      navigate("/");
-    } else {
-      setError(res.error || "Failed to create identity.");
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await signUp(anonId, avatar, pin || undefined);
+      if (res.success) {
+        navigate("/");
+      } else {
+        setError(res.error || "Failed to create identity.");
+      }
+    } catch (err: any) {
+      setError(err?.message || "Error validating Anon ID.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -201,9 +219,10 @@ export function SignUp() {
             {/* Submit button */}
             <button
               type="submit"
-              className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2.5 rounded-xl transition-colors shadow-lg shadow-purple-600/30 text-sm mt-3"
+              disabled={isLoading}
+              className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl transition-colors shadow-lg shadow-purple-600/30 text-sm mt-3"
             >
-              Create Identity & Enter
+              {isLoading ? "Validating & Creating Identity..." : "Create Identity & Enter"}
             </button>
           </form>
 

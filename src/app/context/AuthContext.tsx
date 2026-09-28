@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { syncUserToFirestore } from "../services/chatService";
+import { syncUserToFirestore, isAnonIdRegistered } from "../services/chatService";
 
 export interface UserAccount {
   id: string;
@@ -14,9 +14,9 @@ export interface UserAccount {
 interface AuthContextType {
   currentUser: UserAccount;
   savedAccounts: UserAccount[];
-  login: (anonId: string, pin?: string) => { success: boolean; error?: string };
-  signUp: (anonId: string, avatar: string, pin?: string) => { success: boolean; error?: string };
-  quickStart: () => UserAccount;
+  login: (anonId: string, pin?: string) => Promise<{ success: boolean; error?: string }>;
+  signUp: (anonId: string, avatar: string, pin?: string) => Promise<{ success: boolean; error?: string }>;
+  quickStart: () => Promise<UserAccount>;
   logout: () => void;
   switchAccount: (userId: string) => boolean;
   removeSavedAccount: (userId: string) => void;
@@ -40,7 +40,7 @@ function getClaimedIds(): Set<string> {
   return new Set();
 }
 
-function claimAnonId(id: string) {
+export function claimAnonId(id: string) {
   const claimed = getClaimedIds();
   claimed.add(id);
   try {
@@ -66,13 +66,14 @@ export function generateUniqueAnonId(): string {
 }
 
 export function getShareConnectUrl(anonId: string): string {
-  const isInternal = typeof window !== "undefined" && (
-    window.location.hostname.includes("run.app") || 
-    window.location.hostname.includes("localhost") ||
-    window.location.hostname.includes("127.0.0.1")
-  );
-  const baseUrl = isInternal ? "https://anonote-three.vercel.app" : (typeof window !== "undefined" ? window.location.origin : "https://anonote-three.vercel.app");
-  return `${baseUrl}/?connect=${encodeURIComponent(anonId)}`;
+  if (typeof window !== "undefined" && window.location.origin) {
+    const origin = window.location.origin;
+    if (origin.includes("run.app") || origin.includes("localhost") || origin.includes("127.0.0.1")) {
+      return `https://anonote-three.vercel.app/?connect=${encodeURIComponent(anonId)}`;
+    }
+    return `${origin}/?connect=${encodeURIComponent(anonId)}`;
+  }
+  return `https://anonote-three.vercel.app/?connect=${encodeURIComponent(anonId)}`;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -151,7 +152,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return `Anon #${digits || Math.floor(1000 + Math.random() * 9000)}`;
   };
 
-  const login = (rawAnonId: string, pin?: string): { success: boolean; error?: string } => {
+  const login = async (rawAnonId: string, pin?: string): Promise<{ success: boolean; error?: string }> => {
     const formattedId = normalizeAnonId(rawAnonId);
     
     const existing = savedAccounts.find(
@@ -184,12 +185,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { success: true };
   };
 
-  const signUp = (rawAnonId: string, avatar: string, pin?: string): { success: boolean; error?: string } => {
+  const signUp = async (rawAnonId: string, avatar: string, pin?: string): Promise<{ success: boolean; error?: string }> => {
     const formattedId = normalizeAnonId(rawAnonId);
     
-    const isTaken = savedAccounts.some((a) => a.anonId.toLowerCase() === formattedId.toLowerCase() && a.id !== currentUser.id);
-    if (isTaken) {
-      return { success: false, error: `Anon ID ${formattedId} is already active on this device. Please log into it or choose another ID.` };
+    // 1. Check local saved accounts
+    const isTakenLocally = savedAccounts.some((a) => a.anonId.toLowerCase() === formattedId.toLowerCase() && a.id !== currentUser.id);
+    if (isTakenLocally) {
+      return { success: false, error: `Anon ID "${formattedId}" is already active on this device. Please log in or generate another ID.` };
+    }
+
+    // 2. Enforce strict uniqueness in cloud database across all users
+    const isTakenInCloud = await isAnonIdRegistered(formattedId, currentUser.id);
+    if (isTakenInCloud) {
+      return {
+        success: false,
+        error: `Anon ID "${formattedId}" is already taken by another user on the network. Once taken, another user cannot use it. Please choose or generate another ID.`,
+      };
     }
 
     claimAnonId(formattedId);
@@ -209,32 +220,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { success: true };
   };
 
-  const quickStart = (): UserAccount => {
-    const uniqueId = generateUniqueAnonId();
+  const quickStart = async (): Promise<UserAccount> => {
+    let candidate = generateUniqueAnonId();
+    // Verify candidate is free in cloud
+    let attempts = 0;
+    while (attempts < 10) {
+      const taken = await isAnonIdRegistered(candidate);
+      if (!taken) break;
+      candidate = generateUniqueAnonId();
+      attempts++;
+    }
+
     const avatars = ["🎭", "🕶️", "👤", "🌑", "💭", "🔮", "🎪", "🌙", "✨", "🛡️"];
     const randomAvatar = avatars[Math.floor(Math.random() * avatars.length)];
 
     const newUser: UserAccount = {
       id: `u_${Date.now()}`,
-      anonId: uniqueId,
-      name: uniqueId,
+      anonId: candidate,
+      name: candidate,
       avatar: randomAvatar,
       isVerified: false,
       createdAt: new Date().toISOString(),
     };
 
+    claimAnonId(candidate);
     setCurrentUser(newUser);
-    setSavedAccounts((prev) => [newUser, ...prev]);
+    setSavedAccounts((prev) => [newUser, ...prev.filter((a) => a.anonId !== candidate)]);
     window.dispatchEvent(new CustomEvent("auth_account_switched", { detail: newUser }));
     return newUser;
   };
 
   const logout = () => {
-    window.dispatchEvent(new CustomEvent("auth_logged_out"));
+    const nextAccount = savedAccounts.find((a) => a.id !== currentUser.id);
+    if (nextAccount) {
+      setCurrentUser(nextAccount);
+    } else {
+      const brandNewUser: UserAccount = {
+        id: `u_${Date.now()}`,
+        anonId: generateUniqueAnonId(),
+        name: `Anon #${Math.floor(1000 + Math.random() * 9000)}`,
+        avatar: "👤",
+        isVerified: false,
+        createdAt: new Date().toISOString(),
+      };
+      setCurrentUser(brandNewUser);
+    }
   };
 
   const switchAccount = (userId: string): boolean => {
-    const target = savedAccounts.find((a) => a.id === userId || a.anonId === userId);
+    const target = savedAccounts.find((a) => a.id === userId);
     if (target) {
       setCurrentUser(target);
       window.dispatchEvent(new CustomEvent("auth_account_switched", { detail: target }));
@@ -245,21 +279,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const removeSavedAccount = (userId: string) => {
     setSavedAccounts((prev) => prev.filter((a) => a.id !== userId));
+    if (currentUser.id === userId) {
+      logout();
+    }
   };
 
   const updateProfile = (name: string, avatar?: string) => {
-    setCurrentUser((prev) => {
-      const updated = {
-        ...prev,
-        name: name.trim() || prev.name,
-        avatar: avatar || prev.avatar,
-      };
-      setSavedAccounts((all) => all.map((a) => (a.id === prev.id ? updated : a)));
-      return updated;
-    });
+    setCurrentUser((prev) => ({
+      ...prev,
+      name: name || prev.name,
+      avatar: avatar || prev.avatar,
+    }));
   };
 
-  const getConnectUrl = (anonId?: string): string => {
+  const generateUniqueId = () => {
+    return generateUniqueAnonId();
+  };
+
+  const getConnectUrl = (anonId?: string) => {
     return getShareConnectUrl(anonId || currentUser.anonId);
   };
 
@@ -275,7 +312,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         switchAccount,
         removeSavedAccount,
         updateProfile,
-        generateUniqueId: generateUniqueAnonId,
+        generateUniqueId,
         getConnectUrl,
       }}
     >

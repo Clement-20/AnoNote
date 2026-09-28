@@ -12,24 +12,32 @@ export function Login() {
   const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!anonId.trim()) {
       setError("Please enter your Anon ID or numeric code");
       return;
     }
 
-    const res = login(anonId, pin);
-    if (res.success) {
-      navigate("/");
-    } else {
-      setError(res.error || "Login failed. Check your credentials.");
+    try {
+      const res = await login(anonId, pin);
+      if (res.success) {
+        navigate("/");
+      } else {
+        setError(res.error || "Login failed. Check your credentials.");
+      }
+    } catch {
+      setError("Login failed. Check your credentials.");
     }
   };
 
-  const handleQuickJoin = () => {
-    quickStart();
-    navigate("/");
+  const handleQuickJoin = async () => {
+    try {
+      await quickStart();
+      navigate("/");
+    } catch {
+      setError("Failed to create quick session.");
+    }
   };
 
   const handleSelectSaved = (userId: string) => {

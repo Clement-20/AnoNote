@@ -128,13 +128,6 @@ export function ChatList() {
 
   // Map firestore chats to item format
   const mappedChats = firestoreChats.map((c) => {
-    const otherParticipant = c.participants.find((p) => p !== currentUser.anonId) || c.participants[0];
-    const peerMeta = c.participantData?.[otherParticipant] || {
-      name: otherParticipant,
-      avatar: "👤",
-      isVerified: false,
-    };
-
     let formattedTime = "Just now";
     if (c.updatedAt || c.createdAt) {
       try {
@@ -146,6 +139,26 @@ export function ChatList() {
     }
 
     const chatDraft = draftsMap[c.id];
+
+    if (c.isGroup) {
+      return {
+        id: c.id,
+        name: c.groupName || "Encrypted Group",
+        lastMessage: c.lastMessage || "Encrypted conversation established",
+        timestamp: formattedTime,
+        unread: c.unreadCount?.[currentUser.anonId] || 0,
+        avatar: c.groupAvatar || "👥",
+        isVerified: false,
+        draft: chatDraft,
+      };
+    }
+
+    const otherParticipant = c.participants?.find((p) => p !== currentUser.anonId) || c.participants?.[0] || "Anon Peer";
+    const peerMeta = c.participantData?.[otherParticipant] || {
+      name: otherParticipant,
+      avatar: "👤",
+      isVerified: false,
+    };
 
     return {
       id: c.id,

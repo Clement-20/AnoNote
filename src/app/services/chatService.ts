@@ -34,6 +34,10 @@ export interface FirestoreMessage {
 
 export interface FirestoreChat {
   id: string;
+  isGroup?: boolean;
+  groupName?: string;
+  groupAvatar?: string;
+  createdBy?: string;
   participants: string[];
   participantData: {
     [anonId: string]: {
@@ -57,6 +61,21 @@ export function getDirectChatId(anonId1: string, anonId2: string): string {
   const clean1 = sorted[0].replace(/[^a-zA-Z0-9]/g, "_");
   const clean2 = sorted[1].replace(/[^a-zA-Z0-9]/g, "_");
   return `chat_${clean1}__${clean2}`;
+}
+
+// Check if an Anon ID is already registered in Firestore cloud database
+export async function isAnonIdRegistered(anonId: string, excludeUserId?: string): Promise<boolean> {
+  try {
+    const userKey = anonId.trim().toLowerCase().replace(/[^a-zA-Z0-9]/g, "_");
+    const userRef = doc(db, "users", userKey);
+    const snap = await getDoc(userRef);
+    if (!snap.exists()) return false;
+    const data = snap.data();
+    if (excludeUserId && data.id === excludeUserId) return false;
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // Register user in Firestore with offline capability
@@ -170,6 +189,63 @@ export async function getOrCreateDirectChat(
   }
 
   return chatId;
+}
+
+// Create a real-time group chat in Firestore
+export async function createGroupChat(
+  currentUser: UserAccount,
+  groupName: string,
+  groupAvatar: string,
+  participantAnonIds: string[]
+): Promise<string> {
+  const groupId = `group_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const chatRef = doc(db, "chats", groupId);
+  const allParticipants = Array.from(new Set([currentUser.anonId, ...participantAnonIds]));
+  
+  const participantData: Record<string, any> = {
+    [currentUser.anonId]: {
+      name: currentUser.name,
+      avatar: currentUser.avatar,
+      isVerified: !!currentUser.isVerified,
+    },
+  };
+  
+  participantAnonIds.forEach((pId) => {
+    participantData[pId] = {
+      name: pId,
+      avatar: "👤",
+      isVerified: false,
+    };
+  });
+
+  const nowIso = new Date().toISOString();
+  await setDoc(chatRef, {
+    id: groupId,
+    isGroup: true,
+    groupName: groupName.trim(),
+    groupAvatar: groupAvatar || "👥",
+    participants: allParticipants,
+    participantData,
+    createdBy: currentUser.anonId,
+    lastMessage: `Group "${groupName}" created`,
+    lastMessageTimestamp: nowIso,
+    lastSenderId: currentUser.anonId,
+    createdAt: nowIso,
+    updatedAt: nowIso,
+  });
+
+  const messagesRef = collection(db, "chats", groupId, "messages");
+  await addDoc(messagesRef, {
+    text: `🛡️ Encrypted Group "${groupName}" created by ${currentUser.anonId}. All messages are synchronized in real-time.`,
+    senderAnonId: "system",
+    senderName: "System",
+    senderAvatar: "🛡️",
+    timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    createdAt: serverTimestamp(),
+    status: "read",
+  });
+
+  return groupId;
 }
 
 // Subscribe to real-time messages with Dexie.js IndexedDB storage layer
@@ -301,7 +377,6 @@ export function subscribeToMessages(
         // Combine server messages + queued Dexie messages
         const all = [...serverMsgs];
         for (const qItem of queuedMsgs) {
-          // Avoid duplicate if server already returned it
           if (!all.some((m) => m.id === qItem.id || (m.text === qItem.text && m.senderAnonId === qItem.senderAnonId && Math.abs((m.createdAt?.toMillis?.() || 0) - (qItem.createdAt || 0)) < 2000))) {
             all.push(qItem);
           }
@@ -318,12 +393,10 @@ export function subscribeToMessages(
     },
     (err) => {
       console.error("[Firestore] Error listening to messages:", err);
-      // Even if Firestore errors due to offline, reload Dexie local cache
       loadLocalDexieCache();
     }
   );
 
-  // Subscribe to queue change notifications to re-render pending messages in this chat
   const unsubscribeQueue = subscribeToQueueCount(() => {
     loadLocalDexieCache();
   });
@@ -345,10 +418,7 @@ export async function sendChatMessage(
 ) {
   if (!text.trim() && !mediaUrl) return;
 
-  // Queue into Dexie.js IndexedDB storage and auto-sync
   await queueAndSendMessage(chatId, sender, text, mediaType, mediaUrl);
-
-  // Clean up any draft for this chat
   deleteChatDraft(sender.anonId, chatId);
 }
 
@@ -376,7 +446,6 @@ export async function saveChatDraft(
     return;
   }
 
-  // 1. Save in Dexie IndexedDB
   try {
     await offlineDb.cachedDrafts.put({
       id: draftId,
@@ -390,7 +459,6 @@ export async function saveChatDraft(
     console.warn("[Dexie] Error saving draft locally:", e);
   }
 
-  // 2. Save in Firestore cloud
   try {
     const draftRef = doc(db, "users", userKey, "drafts", chatKey);
     await setDoc(
@@ -434,7 +502,6 @@ export function subscribeToChatDraft(
   const chatKey = chatId.trim().replace(/[^a-zA-Z0-9_]/g, "_");
   const draftId = `${userKey}_${chatKey}`;
 
-  // Check Dexie IndexedDB first for instant draft restoration
   offlineDb.cachedDrafts.get(draftId).then((cached) => {
     if (cached) {
       onDraftUpdate({ text: cached.text || "", replyTo: cached.replyTo });
@@ -468,7 +535,6 @@ export function subscribeToAllUserDrafts(
   const userKey = userAnonId.trim().toLowerCase().replace(/[^a-zA-Z0-9]/g, "_");
   const draftsRef = collection(db, "users", userKey, "drafts");
 
-  // Load from Dexie first
   offlineDb.cachedDrafts
     .where("userAnonId")
     .equals(userAnonId)

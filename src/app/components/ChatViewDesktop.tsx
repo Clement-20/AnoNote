@@ -120,19 +120,53 @@ export function ChatViewDesktop() {
     return () => unsubscribe();
   }, [currentChatId]);
 
-  // Dynamic peer metadata lookup from chat ID
+  const [liveChatDoc, setLiveChatDoc] = useState<any>(null);
+
+  useEffect(() => {
+    const chatRef = doc(db, "chats", currentChatId);
+    const unsub = onSnapshot(chatRef, (snap) => {
+      if (snap.exists()) {
+        setLiveChatDoc(snap.data());
+      }
+    });
+    return () => unsub();
+  }, [currentChatId]);
+
+  // Dynamic peer/group metadata lookup from chat ID & live doc
   const chatMeta = (() => {
+    if (liveChatDoc?.isGroup) {
+      return {
+        name: liveChatDoc.groupName || "Encrypted Group",
+        avatar: liveChatDoc.groupAvatar || "👥",
+        isVerified: false,
+        isGroup: true,
+        participantsCount: liveChatDoc.participants?.length || 2,
+      };
+    }
+
+    if (currentChatId.startsWith("group_")) {
+      return {
+        name: "Encrypted Group",
+        avatar: "👥",
+        isVerified: false,
+        isGroup: true,
+        participantsCount: 2,
+      };
+    }
+
     // If chat ID is a direct chat (chat_anon1__anon2), extract peer ID
     if (currentChatId.startsWith("chat_")) {
       const parts = currentChatId.replace("chat_", "").split("__");
-      // Find the one that doesn't match current user's normalized ID
       const myClean = currentUser.anonId.toLowerCase().replace(/[^a-zA-Z0-9]/g, "_");
       const peerClean = parts.find((p) => p !== myClean) || parts[0];
-      const displayName = `Anon #${peerClean.replace(/[^0-9]/g, "") || peerClean}`;
+      const otherParticipant = liveChatDoc?.participants?.find((p: string) => p !== currentUser.anonId);
+      const peerData = otherParticipant && liveChatDoc?.participantData?.[otherParticipant];
+      const displayName = peerData?.name || `Anon #${peerClean.replace(/[^0-9]/g, "") || peerClean}`;
       return {
         name: displayName,
-        avatar: "👤",
-        isVerified: false,
+        avatar: peerData?.avatar || "👤",
+        isVerified: !!peerData?.isVerified,
+        isGroup: false,
       };
     }
 
@@ -141,6 +175,7 @@ export function ChatViewDesktop() {
         name: "Direct Peer",
         avatar: "👤",
         isVerified: false,
+        isGroup: false,
       };
     }
 
@@ -149,6 +184,7 @@ export function ChatViewDesktop() {
         name: currentChatId,
         avatar: "👤",
         isVerified: false,
+        isGroup: false,
       };
     }
 
@@ -156,6 +192,7 @@ export function ChatViewDesktop() {
       name: `Anon #${currentChatId.replace(/[^0-9a-zA-Z]/g, "") || currentChatId}`,
       avatar: "👤",
       isVerified: false,
+      isGroup: false,
     };
   })();
 
@@ -328,6 +365,11 @@ export function ChatViewDesktop() {
                   <p className="text-[11px] text-purple-400 font-mono flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-ping inline-block" />
                     Syncing {queuedCount} queued message{queuedCount > 1 ? 's' : ''}...
+                  </p>
+                ) : chatMeta.isGroup ? (
+                  <p className="text-[11px] text-purple-300 font-mono flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+                    {chatMeta.participantsCount} participants · Live Sync
                   </p>
                 ) : (
                   <p className="text-[11px] text-emerald-400 font-mono flex items-center gap-1">
