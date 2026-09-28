@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { RouterProvider } from "react-router";
 import { router } from "./routes";
+import { AuthProvider } from "./context/AuthContext";
 
 // Helper for playing Web Audio notification beeps / call rings without external audio file dependencies
 export function playNotificationSound(type: 'message' | 'call') {
@@ -60,5 +61,9 @@ export default function App() {
     };
   }, []);
 
-  return <RouterProvider router={router} />;
+  return (
+    <AuthProvider>
+      <RouterProvider router={router} />
+    </AuthProvider>
+  );
 }

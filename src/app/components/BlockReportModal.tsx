@@ -22,6 +22,22 @@ export function BlockReportModal({ type, userName, onConfirm, onClose }: BlockRe
 
   const handleAction = () => {
     setSubmitted(true);
+    if (type === 'report') {
+      try {
+        const saved = localStorage.getItem("anonote_admin_reports");
+        const list = saved ? JSON.parse(saved) : [];
+        list.unshift({
+          id: `rep_${Date.now()}`,
+          targetUser: userName,
+          reason: selectedReason,
+          timestamp: new Date().toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+          status: "pending",
+        });
+        localStorage.setItem("anonote_admin_reports", JSON.stringify(list));
+      } catch (e) {
+        console.error("Failed to save report to admin queue", e);
+      }
+    }
     setTimeout(() => {
       onConfirm(type === 'report' ? selectedReason : undefined);
       onClose();

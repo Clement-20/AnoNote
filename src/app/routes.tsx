@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router";
+import { createBrowserRouter, Navigate } from "react-router";
 import { ChatList } from "./components/ChatList";
 import { ChatViewDesktop } from "./components/ChatViewDesktop";
 import { ResponsiveLayout } from "./components/ResponsiveLayout";
@@ -22,8 +22,17 @@ import { AppearanceSettings } from "./components/settings/AppearanceSettings";
 import { StorageSettings } from "./components/settings/StorageSettings";
 import { HelpSettings } from "./components/settings/HelpSettings";
 import { InviteSettings } from "./components/settings/InviteSettings";
+import { AdminConsole } from "./components/AdminConsole";
 
 export const router = createBrowserRouter([
+  {
+    path: "/admin020page",
+    Component: AdminConsole,
+  },
+  {
+    path: "/admin",
+    element: <Navigate to="/" replace />,
+  },
   {
     path: "/login",
     Component: Login,
@@ -127,5 +136,9 @@ export const router = createBrowserRouter([
   {
     path: "/new-group",
     Component: NewGroup,
+  },
+  {
+    path: "*",
+    element: <Navigate to="/" replace />,
   },
 ]);
