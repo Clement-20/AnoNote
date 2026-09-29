@@ -30,6 +30,8 @@ import {
   subscribeToMessages,
   subscribeToChatMetadata,
   sendChatMessage,
+  editMessage,
+  deleteMessage,
   toggleMessageReaction,
   ensureChatParticipant,
   subscribeToChatDraft,
@@ -85,6 +87,8 @@ export function ChatViewDesktop() {
   const [forwardingMsg, setForwardingMsg] = useState<string | null>(null);
   const [pinnedMessage, setPinnedMessage] = useState<{ id: string; text: string } | null>(null);
   const [replyingTo, setReplyingTo] = useState<{ id: string; text: string; senderName: string } | null>(null);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingMessageOriginalText, setEditingMessageOriginalText] = useState<string>("");
   const textInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -166,6 +170,8 @@ export function ChatViewDesktop() {
     return () => unsub();
   }, [currentChatId]);
 
+  const [peerPresence, setPeerPresence] = useState<UserPresence | null>(null);
+
   // Dynamic peer/group metadata lookup
   const chatMeta = (() => {
     if (liveChatDoc?.isGroup) {
@@ -228,7 +234,7 @@ export function ChatViewDesktop() {
     return null;
   })();
 
-  const [peerPresence, setPeerPresence] = useState<UserPresence | null>(null);
+  // Subscribe and load user presence for this peer
 
   useEffect(() => {
     if (!peerAnonId) {
@@ -472,6 +478,19 @@ export function ChatViewDesktop() {
     textInputRef.current?.focus();
   };
 
+  const handleEditMessage = (msgId: string, originalText: string) => {
+    setEditingMessageId(msgId);
+    setEditingMessageOriginalText(originalText);
+    setMessage(originalText.replace(" (edited)", ""));
+    textInputRef.current?.focus();
+  };
+
+  const handleDeleteMessage = async (msgId: string) => {
+    if (window.confirm("Are you sure you want to delete this message permanently? This action is zero-knowledge and cannot be undone.")) {
+      await deleteMessage(currentChatId, msgId);
+    }
+  };
+
   // Read and Delivery Receipt tracking
   const processedReadIdsRef = useRef<Set<string>>(new Set());
   const processedDeliveredIdsRef = useRef<Set<string>>(new Set());
@@ -535,6 +554,17 @@ export function ChatViewDesktop() {
     setReplyingTo(null);
     setMentionQuery(null);
     deleteChatDraft(currentUser.anonId, currentChatId);
+
+    if (editingMessageId) {
+      try {
+        await editMessage(currentChatId, editingMessageId, textToSend);
+        setEditingMessageId(null);
+        setEditingMessageOriginalText("");
+      } catch (e) {
+        console.error("Failed to edit message:", e);
+      }
+      return;
+    }
 
     try {
       const isPeerOnline = chatMeta.isGroup ? false : !!peerPresence?.isOnline;
@@ -750,6 +780,8 @@ export function ChatViewDesktop() {
             onPin={() => setPinnedMessage({ id: msg.id, text: msg.text })}
             onReply={() => handleReply(msg)}
             onForward={() => setForwardingMsg(msg.text)}
+            onEdit={() => handleEditMessage(msg.id, msg.text)}
+            onDelete={() => handleDeleteMessage(msg.id)}
           />
         ))}
         <div ref={messagesEndRef} />
@@ -764,6 +796,28 @@ export function ChatViewDesktop() {
         >
           <ChevronDown className="w-5 h-5 text-[#00a8fc]" />
         </button>
+      )}
+
+      {/* Editing Message Banner */}
+      {editingMessageId && (
+        <div className="bg-[#111b21] px-4 py-2 border-t border-[#202c33] flex items-center justify-between z-10">
+          <div className="flex items-center gap-2.5 min-w-0 border-l-4 border-amber-500 pl-2.5">
+            <div className="min-w-0 text-xs">
+              <span className="text-amber-500 font-medium block">Editing Message</span>
+              <span className="text-[#8696a0] truncate block">{editingMessageOriginalText}</span>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setEditingMessageId(null);
+              setEditingMessageOriginalText("");
+              setMessage("");
+            }}
+            className="text-[#8696a0] hover:text-[#e9edef] p-1"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
       )}
 
       {/* Reply Banner */}

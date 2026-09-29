@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { SmilePlus, Share2, Pin, Reply, Clock, CheckCheck, Check, X } from "lucide-react";
+import { SmilePlus, Share2, Pin, Reply, Clock, CheckCheck, Check, X, Pencil, Trash2 } from "lucide-react";
 import { formatMessageWithTags } from "../utils/tagFormatter";
 
 interface MessageBubbleProps {
+  id: string;
   text: string;
   isSent: boolean;
   timestamp: string;
@@ -22,11 +23,14 @@ interface MessageBubbleProps {
   onForward?: () => void;
   onPin?: () => void;
   onReply?: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
 
 export function MessageBubble({
+  id,
   text,
   isSent,
   timestamp,
@@ -42,6 +46,8 @@ export function MessageBubble({
   onForward,
   onPin,
   onReply,
+  onEdit,
+  onDelete,
 }: MessageBubbleProps) {
   const [showPicker, setShowPicker] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
@@ -94,6 +100,25 @@ export function MessageBubble({
           >
             <Pin className="w-3.5 h-3.5" />
           </button>
+          {isSent && !isPending && (
+            <>
+              <div className="w-[1px] h-3.5 bg-[#2a3942] mx-0.5" />
+              <button
+                onClick={onEdit}
+                className="text-[#8696a0] hover:text-amber-400 p-1 rounded-full hover:bg-[#111b21]"
+                title="Edit message"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={onDelete}
+                className="text-[#8696a0] hover:text-red-400 p-1 rounded-full hover:bg-[#111b21]"
+                title="Delete message"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </>
+          )}
         </div>
 
         {/* Reaction picker */}

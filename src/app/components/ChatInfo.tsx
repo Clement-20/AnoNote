@@ -24,7 +24,7 @@ import { WallpaperModal } from "./WallpaperModal";
 import { BlockReportModal } from "./BlockReportModal";
 import { VerifiedBadge } from "./VerifiedBadge";
 import { useAuth } from "../context/AuthContext";
-import { subscribeToChatMetadata, subscribeToMessages } from "../services/chatService";
+import { subscribeToChatMetadata, subscribeToMessages, updateChatEphemeralSetting } from "../services/chatService";
 
 export function ChatInfo() {
   const navigate = useNavigate();
@@ -44,6 +44,9 @@ export function ChatInfo() {
   useEffect(() => {
     const unsubMeta = subscribeToChatMetadata(currentId, (data) => {
       setLiveChatDoc(data);
+      if (data?.ephemeralSetting) {
+        setDisappearingSetting(data.ephemeralSetting);
+      }
     });
     const unsubMsgs = subscribeToMessages(currentId, (msgs) => {
       const media = msgs.filter((m) => !!m.mediaUrl);
@@ -201,7 +204,10 @@ export function ChatInfo() {
         isOpen={showDisappearingModal}
         onClose={() => setShowDisappearingModal(false)}
         currentSetting={disappearingSetting}
-        onSave={(s) => setDisappearingSetting(s)}
+        onSave={async (s) => {
+          setDisappearingSetting(s);
+          await updateChatEphemeralSetting(currentId, s);
+        }}
       />
 
       <WallpaperModal

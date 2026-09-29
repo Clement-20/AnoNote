@@ -11,6 +11,7 @@ interface DisappearingMessagesModalProps {
 
 const OPTIONS = [
   { id: "off", label: "Off", description: "Messages do not automatically disappear" },
+  { id: "10s", label: "10 seconds (Testing Mode)", description: "New messages automatically disappear 10 seconds after creation" },
   { id: "24h", label: "24 hours", description: "New messages disappear 24 hours after being read" },
   { id: "7d", label: "7 days", description: "New messages disappear 7 days after being read" },
   { id: "90d", label: "90 days", description: "New messages disappear 90 days after being read" },

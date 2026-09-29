@@ -391,6 +391,14 @@ export function subscribeToMessages(
 
   loadLocalDexieCache();
 
+  // Listen to active ephemeral setting of the chat document in real-time
+  let currentEphemeralSetting = "off";
+  const unsubscribeChatDoc = onSnapshot(doc(db, "chats", chatId), (snap) => {
+    if (snap.exists()) {
+      currentEphemeralSetting = snap.data().ephemeralSetting || "off";
+    }
+  });
+
   // 2. Subscribe to live Firestore collection (bounded to latest 150 messages for optimal scale & speed)
   const messagesRef = collection(db, "chats", chatId, "messages");
   const q = query(messagesRef, orderBy("createdAt", "asc"), limitToLast(150));
@@ -403,6 +411,17 @@ export function subscribeToMessages(
 
       for (const docSnap of snapshot.docs) {
         const data = docSnap.data();
+        const timestampNum = data.createdAt?.toMillis ? data.createdAt.toMillis() : Date.now();
+
+        // Check if message is expired under the current ephemeral mode setting
+        if (isMessageExpired(timestampNum, currentEphemeralSetting)) {
+          // Delete from Firestore
+          deleteDoc(doc(db, "chats", chatId, "messages", docSnap.id)).catch(() => {});
+          // Delete from local cache
+          offlineDb.cachedMessages.delete(docSnap.id).catch(() => {});
+          continue;
+        }
+
         const msg: FirestoreMessage = {
           id: docSnap.id,
           ...data,
@@ -413,7 +432,6 @@ export function subscribeToMessages(
 
         // Store server message into Dexie IndexedDB cache for offline persistence
         try {
-          const timestampNum = data.createdAt?.toMillis ? data.createdAt.toMillis() : Date.now();
           await offlineDb.cachedMessages.put({
             id: docSnap.id,
             chatId,
@@ -495,6 +513,7 @@ export function subscribeToMessages(
     isMounted = false;
     unsubscribeFirestore();
     unsubscribeQueue();
+    unsubscribeChatDoc();
   };
 }
 
@@ -940,5 +959,59 @@ export function subscribeToBroadcast(onUpdate: (message: string, timestampStr?: 
       onUpdate("", "");
     }
   });
+}
+
+// Update Chat Ephemeral Setting
+export async function updateChatEphemeralSetting(chatId: string, setting: string) {
+  try {
+    const chatRef = doc(db, "chats", chatId);
+    await updateDoc(chatRef, {
+      ephemeralSetting: setting,
+      updatedAt: serverTimestamp(),
+    });
+  } catch (e) {
+    console.error("Failed to update ephemeral setting:", e);
+  }
+}
+
+// Check if a message has expired based on ephemeral setting
+export function isMessageExpired(createdAtMillis: number, setting: string): boolean {
+  if (!setting || setting === "off") return false;
+  let durationMs = 0;
+  if (setting === "10s") durationMs = 10 * 1000;
+  else if (setting === "24h") durationMs = 24 * 60 * 60 * 1000;
+  else if (setting === "7d") durationMs = 7 * 24 * 60 * 60 * 1000;
+  else if (setting === "90d") durationMs = 90 * 24 * 60 * 60 * 1000;
+  
+  if (durationMs === 0) return false;
+  return Date.now() - createdAtMillis > durationMs;
+}
+
+// Edit an existing message
+export async function editMessage(chatId: string, messageId: string, newText: string) {
+  try {
+    const msgRef = doc(db, "chats", chatId, "messages", messageId);
+    await updateDoc(msgRef, {
+      text: newText.trim() + " (edited)",
+      isEdited: true,
+      editedAt: serverTimestamp(),
+    });
+    // Update local cache
+    await offlineDb.cachedMessages.update(messageId, { text: newText.trim() + " (edited)" });
+  } catch (e) {
+    console.error("Failed to edit message:", e);
+  }
+}
+
+// Delete a message entirely
+export async function deleteMessage(chatId: string, messageId: string) {
+  try {
+    const msgRef = doc(db, "chats", chatId, "messages", messageId);
+    await deleteDoc(msgRef);
+    // Delete from local cache
+    await offlineDb.cachedMessages.delete(messageId);
+  } catch (e) {
+    console.error("Failed to delete message:", e);
+  }
 }
 

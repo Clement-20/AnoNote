@@ -220,6 +220,7 @@ export function ChatView() {
         {messages.map((msg) => (
           <MessageBubble
             key={msg.id}
+            id={msg.id}
             text={msg.text}
             isSent={msg.isSent}
             timestamp={msg.timestamp}
