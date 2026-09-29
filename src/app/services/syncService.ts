@@ -1,4 +1,4 @@
-import { collection, addDoc, doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { collection, doc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { offlineDb, OutgoingQueuedMessage, CachedMessage } from "../lib/offlineDb";
 import { UserAccount } from "../context/AuthContext";
@@ -30,17 +30,7 @@ function notifyQueueChange() {
 
 let isProcessingQueue = false;
 
-// Helper: promise with timeout to prevent Firestore network hang
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMsg: string): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error(errorMsg)), timeoutMs)
-    ),
-  ]);
-}
-
-// Process the Dexie outgoing message queue and push to Firestore
+// Process the Dexie outgoing message queue and push to Firestore idempotently
 export async function processOutgoingQueue(): Promise<void> {
   if (isProcessingQueue) return;
   if (typeof navigator !== "undefined" && !navigator.onLine) return;
@@ -48,31 +38,21 @@ export async function processOutgoingQueue(): Promise<void> {
   isProcessingQueue = true;
 
   try {
-    // Reset any messages that might have been stuck in 'sending' state
-    const stuckItems = await offlineDb.outgoingQueue.where("status").equals("sending").toArray();
-    for (const stuck of stuckItems) {
-      if (stuck.id) {
-        await offlineDb.outgoingQueue.update(stuck.id, { status: "queued" });
-      }
-    }
-
     const queuedItems = await offlineDb.outgoingQueue
       .where("status")
-      .anyOf(["queued", "failed"])
+      .anyOf(["queued", "failed", "sending"])
       .sortBy("createdAt");
 
     for (const item of queuedItems) {
-      if (!item.id) continue;
-
-      // Mark as sending
-      await offlineDb.outgoingQueue.update(item.id, { status: "sending" });
+      if (!item.id || !item.localId) continue;
 
       try {
-        const messagesRef = collection(db, "chats", item.chatId, "messages");
+        // Idempotent doc reference using localId as the unique document key
+        const messageDocRef = doc(db, "chats", item.chatId, "messages", item.localId);
         
-        // Push directly to Firestore cloud collection with 8s timeout to avoid indefinite hanging
-        const docRef = await withTimeout(
-          addDoc(messagesRef, {
+        await setDoc(
+          messageDocRef,
+          {
             text: item.text,
             senderAnonId: item.senderAnonId,
             senderName: item.senderName,
@@ -82,9 +62,8 @@ export async function processOutgoingQueue(): Promise<void> {
             mediaType: item.mediaType || null,
             mediaUrl: item.mediaUrl || null,
             status: "delivered",
-          }),
-          8000,
-          "Firestore write timeout"
+          },
+          { merge: true }
         );
 
         // Update parent chat doc
@@ -99,10 +78,9 @@ export async function processOutgoingQueue(): Promise<void> {
           // Non-critical
         });
 
-        // Update local Dexie cached message to delivered state with official Firestore ID
-        await offlineDb.cachedMessages.delete(item.localId);
+        // Update local Dexie cached message to delivered status
         await offlineDb.cachedMessages.put({
-          id: docRef.id,
+          id: item.localId,
           chatId: item.chatId,
           text: item.text,
           senderAnonId: item.senderAnonId,
@@ -116,7 +94,7 @@ export async function processOutgoingQueue(): Promise<void> {
           isPending: false,
         });
 
-        // Remove from outgoing queue
+        // Clean up from outgoing queue
         await offlineDb.outgoingQueue.delete(item.id);
         notifyQueueChange();
       } catch (err: any) {
@@ -199,7 +177,7 @@ if (typeof window !== "undefined") {
     processOutgoingQueue();
   });
 
-  // Background interval check to ensure queue stays flushed
+  // Periodic flush
   setInterval(() => {
     if (navigator.onLine) {
       processOutgoingQueue();

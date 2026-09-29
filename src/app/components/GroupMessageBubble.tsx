@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { SmilePlus, Share2, Pin, Reply } from "lucide-react";
+import { formatMessageWithTags } from "../utils/tagFormatter";
 
 interface GroupMessageBubbleProps {
   text: string;
@@ -7,6 +8,7 @@ interface GroupMessageBubbleProps {
   senderAvatar: string;
   isSent: boolean;
   timestamp: string;
+  currentUserAnonId?: string;
   status?: 'sent' | 'delivered' | 'read';
   mediaUrl?: string;
   mediaType?: 'image' | 'audio' | 'file';
@@ -30,6 +32,7 @@ export function GroupMessageBubble({
   senderAvatar,
   isSent,
   timestamp,
+  currentUserAnonId,
   status = 'read',
   mediaUrl,
   mediaType = 'image',
@@ -162,7 +165,9 @@ export function GroupMessageBubble({
               <img src={mediaUrl} alt="Attached media" className="w-full h-auto object-cover max-h-60" />
             </div>
           ) : null}
-          <p className="text-sm md:text-base break-words">{text}</p>
+          <p className="text-sm md:text-base break-words">
+            {formatMessageWithTags(text, currentUserAnonId, undefined, isSent)}
+          </p>
         </div>
 
         {/* Reactions display beneath message */}

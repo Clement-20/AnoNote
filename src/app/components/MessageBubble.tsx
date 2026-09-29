@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { SmilePlus, Share2, Pin, Reply, Clock, CheckCheck, Check, Maximize2, X } from "lucide-react";
+import { formatMessageWithTags } from "../utils/tagFormatter";
 
 interface MessageBubbleProps {
   text: string;
   isSent: boolean;
   timestamp: string;
+  currentUserAnonId?: string;
   status?: "sent" | "delivered" | "read" | "pending";
   isPending?: boolean;
   mediaUrl?: string;
@@ -27,6 +29,7 @@ export function MessageBubble({
   text,
   isSent,
   timestamp,
+  currentUserAnonId,
   status = "delivered",
   isPending = false,
   mediaUrl,
@@ -163,7 +166,9 @@ export function MessageBubble({
             </div>
           ) : null}
 
-          <p className="text-[13.5px] leading-relaxed whitespace-pre-wrap break-words">{text}</p>
+          <p className="text-[13.5px] leading-relaxed whitespace-pre-wrap break-words">
+            {formatMessageWithTags(text, currentUserAnonId, undefined, isSent)}
+          </p>
         </div>
 
         {/* Reactions display beneath message */}

@@ -3,6 +3,7 @@ import {
   doc,
   setDoc,
   getDoc,
+  updateDoc,
   deleteDoc,
   query,
   where,
@@ -30,6 +31,7 @@ export interface FirestoreMessage {
   mediaUrl?: string;
   status: "sent" | "delivered" | "read";
   isPending?: boolean; // True if queued locally in Dexie IndexedDB waiting for network transmission
+  reactions?: Record<string, string[]>;
 }
 
 export interface FirestoreChat {
@@ -133,6 +135,28 @@ export function subscribeToUserChats(
     },
     (err) => {
       console.error("Error listening to chats:", err);
+    }
+  );
+}
+
+// Subscribe to real-time metadata of a specific chat or group
+export function subscribeToChatMetadata(
+  chatId: string,
+  onUpdate: (data: FirestoreChat | null) => void
+) {
+  const chatRef = doc(db, "chats", chatId);
+  return onSnapshot(
+    chatRef,
+    { includeMetadataChanges: true },
+    (snap) => {
+      if (snap.exists()) {
+        onUpdate({ id: snap.id, ...snap.data() } as FirestoreChat);
+      } else {
+        onUpdate(null);
+      }
+    },
+    (err) => {
+      console.warn("[Firestore] Chat meta subscribe error:", err);
     }
   );
 }
@@ -374,16 +398,26 @@ export function subscribeToMessages(
           isPending: true,
         }));
 
-        // Combine server messages + queued Dexie messages
-        const all = [...serverMsgs];
+        // Combine server messages + queued Dexie messages by unique ID
+        const messageMap = new Map<string, FirestoreMessage>();
+        for (const s of serverMsgs) {
+          messageMap.set(s.id, s);
+        }
         for (const qItem of queuedMsgs) {
-          if (!all.some((m) => m.id === qItem.id || (m.text === qItem.text && m.senderAnonId === qItem.senderAnonId && Math.abs((m.createdAt?.toMillis?.() || 0) - (qItem.createdAt || 0)) < 2000))) {
-            all.push(qItem);
+          if (!messageMap.has(qItem.id)) {
+            messageMap.set(qItem.id, qItem);
           }
         }
 
+        const merged = Array.from(messageMap.values());
+        merged.sort((a, b) => {
+          const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : typeof a.createdAt === "number" ? a.createdAt : 0;
+          const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : typeof b.createdAt === "number" ? b.createdAt : 0;
+          return timeA - timeB;
+        });
+
         if (isMounted) {
-          onMessagesUpdate(all);
+          onMessagesUpdate(merged);
         }
       } catch {
         if (isMounted) {
@@ -406,6 +440,45 @@ export function subscribeToMessages(
     unsubscribeFirestore();
     unsubscribeQueue();
   };
+}
+
+// Toggle or add emoji reaction to a message
+export async function toggleMessageReaction(
+  chatId: string,
+  messageId: string,
+  emoji: string,
+  userAnonId: string
+) {
+  try {
+    const msgRef = doc(db, "chats", chatId, "messages", messageId);
+    const snap = await getDoc(msgRef);
+    if (!snap.exists()) return;
+
+    const data = snap.data();
+    const reactions: Record<string, string[]> = { ...(data.reactions || {}) };
+    const currentUsers: string[] = Array.isArray(reactions[emoji]) ? [...reactions[emoji]] : [];
+
+    const userIndex = currentUsers.indexOf(userAnonId);
+    if (userIndex >= 0) {
+      // User already reacted -> remove reaction (toggle off)
+      currentUsers.splice(userIndex, 1);
+    } else {
+      // Add reaction
+      currentUsers.push(userAnonId);
+    }
+
+    if (currentUsers.length === 0) {
+      delete reactions[emoji];
+    } else {
+      reactions[emoji] = currentUsers;
+    }
+
+    await updateDoc(msgRef, {
+      reactions,
+    });
+  } catch (err) {
+    console.warn("Failed to toggle reaction:", err);
+  }
 }
 
 // Send a message: caches and queues in Dexie.js and synchronizes automatically with Firestore

@@ -1,15 +1,18 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router";
-import { ArrowLeft, MoreVertical, Send, Paperclip, Phone, Video, Palette, Mic, Trash2, Pin, X, Reply, WifiOff } from "lucide-react";
+import { ArrowLeft, MoreVertical, Send, Paperclip, Phone, Video, Palette, Mic, Trash2, Pin, X, Reply, WifiOff, AtSign } from "lucide-react";
 import { MessageBubble } from "./MessageBubble";
 import { ChatMenu } from "./ChatMenu";
 import { ForwardMessageModal } from "./ForwardMessageModal";
 import { WallpaperModal } from "./WallpaperModal";
 import { VerifiedBadge } from "./VerifiedBadge";
+import { GroupTagAutocomplete, TagCandidate } from "./GroupTagAutocomplete";
 import { useAuth } from "../context/AuthContext";
 import {
   subscribeToMessages,
+  subscribeToChatMetadata,
   sendChatMessage,
+  toggleMessageReaction,
   subscribeToChatDraft,
   saveChatDraft,
   deleteChatDraft,
@@ -50,6 +53,10 @@ export function ChatViewDesktop() {
   const [wallpaper, setWallpaper] = useState(() => {
     return localStorage.getItem(`anonote_wallpaper_${currentChatId}`) || "bg-[#0a0a0a]";
   });
+
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionCursorPos, setMentionCursorPos] = useState<number>(0);
+  const [mentionSelectedIndex, setMentionSelectedIndex] = useState<number>(0);
 
   const [showWallpaperModal, setShowWallpaperModal] = useState(false);
   const [forwardingMsg, setForwardingMsg] = useState<string | null>(null);
@@ -123,11 +130,8 @@ export function ChatViewDesktop() {
   const [liveChatDoc, setLiveChatDoc] = useState<any>(null);
 
   useEffect(() => {
-    const chatRef = doc(db, "chats", currentChatId);
-    const unsub = onSnapshot(chatRef, (snap) => {
-      if (snap.exists()) {
-        setLiveChatDoc(snap.data());
-      }
+    const unsub = subscribeToChatMetadata(currentChatId, (docData) => {
+      setLiveChatDoc(docData);
     });
     return () => unsub();
   }, [currentChatId]);
@@ -211,6 +215,7 @@ export function ChatViewDesktop() {
     mediaUrl: m.mediaUrl,
     mediaType: m.mediaType,
     senderName: m.senderName || m.senderAnonId,
+    reactions: m.reactions || {},
   }));
 
   // Auto-scroll to bottom on new messages
@@ -222,6 +227,10 @@ export function ChatViewDesktop() {
     localStorage.setItem(`anonote_wallpaper_${currentChatId}`, wallpaper);
   }, [wallpaper, currentChatId]);
 
+  const handleReact = async (msgId: string, emoji: string) => {
+    await toggleMessageReaction(currentChatId, msgId, emoji, currentUser.anonId);
+  };
+
   const handleReply = (msg: any) => {
     setReplyingTo({
       id: msg.id,
@@ -231,12 +240,99 @@ export function ChatViewDesktop() {
     textInputRef.current?.focus();
   };
 
+  // Extract participants for mentions
+  const participantsList = (() => {
+    if (liveChatDoc?.participants && Array.isArray(liveChatDoc.participants)) {
+      return liveChatDoc.participants.map((pId: string) => {
+        const pData = liveChatDoc.participantData?.[pId];
+        return {
+          anonId: pId,
+          name: pData?.name || pId,
+          avatar: pData?.avatar || "👤",
+        };
+      });
+    }
+    return [
+      { anonId: currentUser.anonId, name: currentUser.name, avatar: currentUser.avatar },
+      { anonId: chatName, name: chatName, avatar: chatAvatar },
+    ];
+  })();
+
+  const allTagCandidates: TagCandidate[] = [
+    { tag: "@all", label: "@all", description: "Notify everyone in this room", isSpecial: true },
+    { tag: "@online", label: "@online", description: "Notify currently active online peers", isSpecial: true },
+    ...participantsList.map((p) => ({
+      tag: `@${p.anonId}`,
+      label: p.name && p.name !== p.anonId ? `${p.name} (${p.anonId})` : p.anonId,
+      description: "Group Participant",
+      avatar: p.avatar,
+    })),
+  ];
+
+  const filteredTags = allTagCandidates.filter((item) => {
+    if (mentionQuery === null || mentionQuery === "") return true;
+    const cleanQ = mentionQuery.toLowerCase().replace("@", "");
+    return (
+      item.tag.toLowerCase().includes(cleanQ) ||
+      item.label.toLowerCase().includes(cleanQ) ||
+      item.description.toLowerCase().includes(cleanQ)
+    );
+  });
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    const cursor = e.target.selectionStart || val.length;
+    setMessage(val);
+
+    // Detect @mention trigger in the word before cursor
+    const textBefore = val.slice(0, cursor);
+    const match = textBefore.match(/(?:^|\s)@([a-zA-Z0-9_#-]*)$/);
+    if (match) {
+      setMentionQuery(match[1]);
+      setMentionCursorPos(cursor);
+      setMentionSelectedIndex(0);
+    } else {
+      setMentionQuery(null);
+    }
+  };
+
+  const handleSelectMention = (tag: string) => {
+    const textBefore = message.slice(0, mentionCursorPos);
+    const textAfter = message.slice(mentionCursorPos);
+    const lastAtPos = textBefore.lastIndexOf("@");
+    if (lastAtPos !== -1) {
+      const newText = textBefore.slice(0, lastAtPos) + tag + " " + textAfter;
+      setMessage(newText);
+      setMentionQuery(null);
+      setTimeout(() => {
+        textInputRef.current?.focus();
+        const newPos = lastAtPos + tag.length + 1;
+        textInputRef.current?.setSelectionRange(newPos, newPos);
+      }, 10);
+    }
+  };
+
+  const handleTriggerMention = () => {
+    const input = textInputRef.current;
+    const cursor = input?.selectionStart || message.length;
+    const newText = message.slice(0, cursor) + "@" + message.slice(cursor);
+    setMessage(newText);
+    setMentionQuery("");
+    setMentionCursorPos(cursor + 1);
+    setMentionSelectedIndex(0);
+    setTimeout(() => {
+      input?.focus();
+      input?.setSelectionRange(cursor + 1, cursor + 1);
+    }, 10);
+  };
+
   const handleSend = async () => {
     if (message.trim()) {
       const textToSend = replyingTo ? `↳ Replying to: "${replyingTo.text.slice(0, 30)}..."\n${message.trim()}` : message.trim();
       const targetChatId = currentChatId;
       setMessage("");
       setReplyingTo(null);
+      setMentionQuery(null);
       await deleteChatDraft(currentUser.anonId, targetChatId);
       await sendChatMessage(targetChatId, currentUser, textToSend);
     }
@@ -414,11 +510,13 @@ export function ChatViewDesktop() {
             <button 
               onClick={() => setShowMenu(!showMenu)} 
               className="text-gray-400 hover:text-white p-2 rounded-xl hover:bg-white/[0.08] transition-colors"
+              title="More Options"
             >
               <MoreVertical className="w-4 h-4" />
             </button>
             <ChatMenu 
-              isOpen={showMenu} 
+              isOpen={showMenu}
+              chatId={currentChatId}
               onClose={() => setShowMenu(false)}
               onClearChat={handleClearChat}
               onWallpaperClick={() => setShowWallpaperModal(true)}
@@ -475,6 +573,8 @@ export function ChatViewDesktop() {
             <MessageBubble
               key={msg.id}
               {...msg}
+              currentUserAnonId={currentUser.anonId}
+              onReact={(emoji) => handleReact(msg.id, emoji)}
               onPin={() => setPinnedMessage({ id: msg.id, text: msg.text })}
               onReply={() => handleReply(msg)}
               onForward={() => setForwardingMsg(msg.text)}
@@ -504,7 +604,16 @@ export function ChatViewDesktop() {
       )}
 
       {/* Footer / Input Bar */}
-      <footer className="bg-[#16161d]/90 backdrop-blur-xl px-3 py-2.5 sm:px-4 sm:py-3 border-t border-white/[0.08] z-10">
+      <footer className="bg-[#16161d]/90 backdrop-blur-xl px-3 py-2.5 sm:px-4 sm:py-3 border-t border-white/[0.08] z-10 relative">
+        {/* Mention Autocomplete Popup */}
+        <GroupTagAutocomplete
+          isOpen={mentionQuery !== null && filteredTags.length > 0}
+          query={mentionQuery || ""}
+          participants={participantsList}
+          selectedIndex={mentionSelectedIndex}
+          onSelectTag={handleSelectMention}
+        />
+
         {isRecording ? (
           <div className="flex items-center justify-between gap-3 bg-[#22222d] border border-red-500/30 rounded-2xl px-4 py-2 shadow-lg">
             <div className="flex items-center gap-3">
@@ -532,29 +641,62 @@ export function ChatViewDesktop() {
             </div>
           </div>
         ) : (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="text-gray-400 hover:text-purple-300 p-2.5 rounded-2xl hover:bg-white/[0.08] transition-all flex-shrink-0 active:scale-95"
+              className="text-gray-400 hover:text-purple-300 p-2 sm:p-2.5 rounded-2xl hover:bg-white/[0.08] transition-all flex-shrink-0 active:scale-95"
               title="Attach Photo"
             >
               <Paperclip className="w-5 h-5" />
             </button>
+
+            <button
+              onClick={handleTriggerMention}
+              className="text-gray-400 hover:text-purple-300 p-2 sm:p-2.5 rounded-2xl hover:bg-white/[0.08] transition-all flex-shrink-0 active:scale-95 font-bold font-mono text-base"
+              title="Mention member or tag (@all, @online, @anon)"
+            >
+              <AtSign className="w-5 h-5" />
+            </button>
             
-            <div className="flex-1 bg-[#1e1e28] rounded-2xl flex items-center px-4 py-2.5 border border-white/[0.08] focus-within:border-purple-500/60 transition-all shadow-inner">
+            <div className="flex-1 bg-[#1e1e28] rounded-2xl flex items-center px-3.5 py-2 sm:px-4 sm:py-2.5 border border-white/[0.08] focus-within:border-purple-500/60 transition-all shadow-inner">
               <input
                 ref={textInputRef}
                 type="text"
-                placeholder={`Encrypted message to ${chatName}...`}
+                placeholder={chatMeta.isGroup ? "Type a message or @ to mention..." : `Encrypted message to ${chatName}...`}
                 value={message}
-                onChange={(e) => setMessage(e.target.value)}
+                onChange={handleInputChange}
                 onKeyDown={(e) => {
+                  if (mentionQuery !== null && filteredTags.length > 0) {
+                    if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      setMentionSelectedIndex((prev) => (prev + 1) % filteredTags.length);
+                      return;
+                    }
+                    if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      setMentionSelectedIndex((prev) => (prev - 1 + filteredTags.length) % filteredTags.length);
+                      return;
+                    }
+                    if (e.key === "Enter" || e.key === "Tab") {
+                      if (filteredTags[mentionSelectedIndex]) {
+                        e.preventDefault();
+                        handleSelectMention(filteredTags[mentionSelectedIndex].tag);
+                        return;
+                      }
+                    }
+                    if (e.key === "Escape") {
+                      e.preventDefault();
+                      setMentionQuery(null);
+                      return;
+                    }
+                  }
+
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
                     handleSend();
                   }
                 }}
-                className="bg-transparent text-white placeholder-gray-500 outline-none flex-1 text-sm md:text-base font-normal"
+                className="bg-transparent text-white placeholder-gray-500 outline-none flex-1 text-xs md:text-sm font-normal"
               />
             </div>
 

@@ -4,11 +4,14 @@ import {
   initializeFirestore,
   persistentLocalCache,
   persistentMultipleTabManager,
+  setLogLevel,
 } from "firebase/firestore";
 import localConfig from "../../../firebase-applet-config.json";
 
+// Silence verbose connection retry warnings in console/sandbox
+setLogLevel("error");
+
 // Standard Firebase web app configuration
-// Uses standard Firebase project credentials with default Firestore database
 const firebaseConfig = {
   apiKey: (import.meta as any).env?.VITE_FIREBASE_API_KEY || localConfig?.apiKey,
   authDomain: (import.meta as any).env?.VITE_FIREBASE_AUTH_DOMAIN || localConfig?.authDomain,
@@ -20,28 +23,23 @@ const firebaseConfig = {
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-// Optional custom database ID fallback for AI Studio sandbox, otherwise standard default database
+// Target database ID
 const databaseId = (localConfig as any)?.firestoreDatabaseId || undefined;
 
-// Initialize Firestore with IndexedDB multi-tab offline persistence
+// Initialize Firestore with IndexedDB multi-tab offline persistence & resilient long-polling auto-detection
 let dbInstance;
+
+const firestoreSettings = {
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager(),
+  }),
+  experimentalAutoDetectLongPolling: true,
+};
 
 try {
   dbInstance = databaseId
-    ? initializeFirestore(
-        app,
-        {
-          localCache: persistentLocalCache({
-            tabManager: persistentMultipleTabManager(),
-          }),
-        },
-        databaseId
-      )
-    : initializeFirestore(app, {
-        localCache: persistentLocalCache({
-          tabManager: persistentMultipleTabManager(),
-        }),
-      });
+    ? initializeFirestore(app, firestoreSettings, databaseId)
+    : initializeFirestore(app, firestoreSettings);
 } catch (err) {
   // If Firestore is already initialized on this App instance
   dbInstance = databaseId ? getFirestore(app, databaseId) : getFirestore(app);

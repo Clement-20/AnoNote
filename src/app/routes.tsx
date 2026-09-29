@@ -23,122 +23,152 @@ import { StorageSettings } from "./components/settings/StorageSettings";
 import { HelpSettings } from "./components/settings/HelpSettings";
 import { InviteSettings } from "./components/settings/InviteSettings";
 import { AdminConsole } from "./components/AdminConsole";
+import { RouteErrorBoundary } from "./components/RouteErrorBoundary";
 
 export const router = createBrowserRouter([
   {
-    path: "/admin020page",
-    Component: AdminConsole,
-  },
-  {
-    path: "/admin",
-    element: <Navigate to="/" replace />,
-  },
-  {
-    path: "/login",
-    Component: Login,
-  },
-  {
-    path: "/signup",
-    Component: SignUp,
-  },
-  {
     path: "/",
-    element: (
-      <ResponsiveLayout>
-        <ChatList />
-      </ResponsiveLayout>
-    ),
-  },
-  {
-    path: "/chat/:id",
-    Component: ChatViewDesktop,
-  },
-  {
-    path: "/archived",
-    Component: ArchivedChats,
-  },
-  {
-    path: "/status",
-    element: (
-      <ResponsiveLayout>
-        <Status />
-      </ResponsiveLayout>
-    ),
-  },
-  {
-    path: "/calls",
-    element: (
-      <ResponsiveLayout>
-        <Calls />
-      </ResponsiveLayout>
-    ),
-  },
-  {
-    path: "/settings",
-    element: (
-      <ResponsiveLayout>
-        <Settings />
-      </ResponsiveLayout>
-    ),
-  },
-  {
-    path: "/settings/account",
-    Component: AccountSettings,
-  },
-  {
-    path: "/settings/anonymity",
-    Component: AnonymitySettings,
-  },
-  {
-    path: "/settings/notifications",
-    Component: NotificationsSettings,
-  },
-  {
-    path: "/settings/privacy",
-    Component: PrivacySettings,
-  },
-  {
-    path: "/settings/appearance",
-    Component: AppearanceSettings,
-  },
-  {
-    path: "/settings/storage",
-    Component: StorageSettings,
-  },
-  {
-    path: "/settings/help",
-    Component: HelpSettings,
-  },
-  {
-    path: "/settings/invite",
-    Component: InviteSettings,
-  },
-  {
-    path: "/profile",
-    Component: Profile,
-  },
-  {
-    path: "/new-chat",
-    Component: NewChat,
-  },
-  {
-    path: "/chat/:id/info",
-    Component: ChatInfo,
-  },
-  {
-    path: "/group/:id",
-    Component: GroupChatView,
-  },
-  {
-    path: "/group/:id/info",
-    Component: GroupInfo,
-  },
-  {
-    path: "/new-group",
-    Component: NewGroup,
-  },
-  {
-    path: "*",
-    element: <Navigate to="/" replace />,
+    errorElement: <RouteErrorBoundary />,
+    children: [
+      {
+        path: "admin020page",
+        Component: AdminConsole,
+        errorElement: <RouteErrorBoundary />,
+      },
+      {
+        path: "admin",
+        element: <Navigate to="/" replace />,
+      },
+      {
+        path: "login",
+        Component: Login,
+        errorElement: <RouteErrorBoundary />,
+      },
+      {
+        path: "signup",
+        Component: SignUp,
+        errorElement: <RouteErrorBoundary />,
+      },
+      {
+        index: true,
+        element: (
+          <ResponsiveLayout>
+            <ChatList />
+          </ResponsiveLayout>
+        ),
+        errorElement: <RouteErrorBoundary />,
+      },
+      {
+        path: "chat/:id",
+        Component: ChatViewDesktop,
+        errorElement: <RouteErrorBoundary />,
+      },
+      {
+        path: "archived",
+        Component: ArchivedChats,
+        errorElement: <RouteErrorBoundary />,
+      },
+      {
+        path: "status",
+        element: (
+          <ResponsiveLayout>
+            <Status />
+          </ResponsiveLayout>
+        ),
+        errorElement: <RouteErrorBoundary />,
+      },
+      {
+        path: "calls",
+        element: (
+          <ResponsiveLayout>
+            <Calls />
+          </ResponsiveLayout>
+        ),
+        errorElement: <RouteErrorBoundary />,
+      },
+      {
+        path: "settings",
+        element: (
+          <ResponsiveLayout>
+            <Settings />
+          </ResponsiveLayout>
+        ),
+        errorElement: <RouteErrorBoundary />,
+      },
+      {
+        path: "settings/account",
+        Component: AccountSettings,
+        errorElement: <RouteErrorBoundary />,
+      },
+      {
+        path: "settings/anonymity",
+        Component: AnonymitySettings,
+        errorElement: <RouteErrorBoundary />,
+      },
+      {
+        path: "settings/notifications",
+        Component: NotificationsSettings,
+        errorElement: <RouteErrorBoundary />,
+      },
+      {
+        path: "settings/privacy",
+        Component: PrivacySettings,
+        errorElement: <RouteErrorBoundary />,
+      },
+      {
+        path: "settings/appearance",
+        Component: AppearanceSettings,
+        errorElement: <RouteErrorBoundary />,
+      },
+      {
+        path: "settings/storage",
+        Component: StorageSettings,
+        errorElement: <RouteErrorBoundary />,
+      },
+      {
+        path: "settings/help",
+        Component: HelpSettings,
+        errorElement: <RouteErrorBoundary />,
+      },
+      {
+        path: "settings/invite",
+        Component: InviteSettings,
+        errorElement: <RouteErrorBoundary />,
+      },
+      {
+        path: "profile",
+        Component: Profile,
+        errorElement: <RouteErrorBoundary />,
+      },
+      {
+        path: "new-chat",
+        Component: NewChat,
+        errorElement: <RouteErrorBoundary />,
+      },
+      {
+        path: "chat/:id/info",
+        Component: ChatInfo,
+        errorElement: <RouteErrorBoundary />,
+      },
+      {
+        path: "group/:id",
+        Component: GroupChatView,
+        errorElement: <RouteErrorBoundary />,
+      },
+      {
+        path: "group/:id/info",
+        Component: GroupInfo,
+        errorElement: <RouteErrorBoundary />,
+      },
+      {
+        path: "new-group",
+        Component: NewGroup,
+        errorElement: <RouteErrorBoundary />,
+      },
+      {
+        path: "*",
+        element: <Navigate to="/" replace />,
+      },
+    ],
   },
 ]);
