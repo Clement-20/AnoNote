@@ -8,6 +8,7 @@ import {
   query,
   where,
   orderBy,
+  limitToLast,
   onSnapshot,
   addDoc,
   serverTimestamp,
@@ -335,9 +336,9 @@ export function subscribeToMessages(
 
   loadLocalDexieCache();
 
-  // 2. Subscribe to live Firestore collection
+  // 2. Subscribe to live Firestore collection (bounded to latest 150 messages for optimal scale & speed)
   const messagesRef = collection(db, "chats", chatId, "messages");
-  const q = query(messagesRef, orderBy("createdAt", "asc"));
+  const q = query(messagesRef, orderBy("createdAt", "asc"), limitToLast(150));
 
   const unsubscribeFirestore = onSnapshot(
     q,

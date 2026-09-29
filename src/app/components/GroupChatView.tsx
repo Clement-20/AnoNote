@@ -1,8 +1,9 @@
 import { useState, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router";
-import { ArrowLeft, MoreVertical, Send, Paperclip, Smile, Phone, Video, Reply, X } from "lucide-react";
+import { ArrowLeft, MoreVertical, Send, Paperclip, Smile, Phone, Video, Reply, X, AtSign } from "lucide-react";
 import { GroupMessageBubble } from "./GroupMessageBubble";
 import { GroupChatMenu } from "./GroupChatMenu";
+import { GroupTagAutocomplete, TagCandidate } from "./GroupTagAutocomplete";
 
 // Mock group messages data with sample reactions
 const groupMessagesData: Record<string, any[]> = {
@@ -31,11 +32,68 @@ export function GroupChatView() {
   const [showMenu, setShowMenu] = useState(false);
   const [messagesMap, setMessagesMap] = useState<Record<string, any[]>>(groupMessagesData);
   const [replyingTo, setReplyingTo] = useState<{ id: string; text: string; senderName: string } | null>(null);
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionCursorPos, setMentionCursorPos] = useState<number>(0);
+  const [mentionSelectedIndex, setMentionSelectedIndex] = useState<number>(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const currentGroupId = id || "g1";
   const messages = messagesMap[currentGroupId] || [];
   const group = groupInfo[currentGroupId] || groupInfo["g1"];
+
+  const groupParticipants = [
+    { anonId: "all", name: "all", avatar: "👥" },
+    { anonId: "online", name: "online", avatar: "🟢" },
+    { anonId: "Anon_3847", name: "Anon #3847", avatar: "👤" },
+    { anonId: "Anon_7291", name: "Anon #7291", avatar: "🕶️" },
+    { anonId: "Anon_1044", name: "Anon #1044", avatar: "🎭" },
+  ];
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    const cursor = e.target.selectionStart || val.length;
+    setMessage(val);
+
+    const textBefore = val.slice(0, cursor);
+    const match = textBefore.match(/(?:^|\s)@([a-zA-Z0-9_#-]*)$/);
+    if (match) {
+      setMentionQuery(match[1]);
+      setMentionCursorPos(cursor);
+      setMentionSelectedIndex(0);
+    } else {
+      setMentionQuery(null);
+    }
+  };
+
+  const handleSelectMention = (tag: string) => {
+    const textBefore = message.slice(0, mentionCursorPos);
+    const textAfter = message.slice(mentionCursorPos);
+    const lastAtPos = textBefore.lastIndexOf("@");
+    if (lastAtPos !== -1) {
+      const newText = textBefore.slice(0, lastAtPos) + tag + " " + textAfter;
+      setMessage(newText);
+      setMentionQuery(null);
+      setTimeout(() => {
+        inputRef.current?.focus();
+        const newPos = lastAtPos + tag.length + 1;
+        inputRef.current?.setSelectionRange(newPos, newPos);
+      }, 10);
+    }
+  };
+
+  const handleTriggerMention = () => {
+    const input = inputRef.current;
+    const cursor = input?.selectionStart || message.length;
+    const newText = message.slice(0, cursor) + "@" + message.slice(cursor);
+    setMessage(newText);
+    setMentionQuery("");
+    setMentionCursorPos(cursor + 1);
+    setMentionSelectedIndex(0);
+    setTimeout(() => {
+      input?.focus();
+      input?.setSelectionRange(cursor + 1, cursor + 1);
+    }, 10);
+  };
 
   const handleReply = (msg: any) => {
     setReplyingTo({
@@ -167,7 +225,16 @@ export function GroupChatView() {
       </div>
 
       {/* Input area */}
-      <div className="bg-[#1c1c1e] px-4 md:px-6 lg:px-8 py-3 md:py-4 border-t border-gray-800">
+      <div className="bg-[#1c1c1e] px-4 md:px-6 lg:px-8 py-3 md:py-4 border-t border-gray-800 relative">
+        {/* Mention Autocomplete Popup */}
+        <GroupTagAutocomplete
+          isOpen={mentionQuery !== null}
+          query={mentionQuery || ""}
+          participants={groupParticipants}
+          selectedIndex={mentionSelectedIndex}
+          onSelectTag={handleSelectMention}
+        />
+
         {/* Quoted Reply Preview */}
         {replyingTo && (
           <div className="max-w-4xl mx-auto mb-2.5 flex items-center justify-between bg-[#2c2c2e] border-l-4 border-purple-500 rounded-r-xl px-4 py-2.5 shadow-md animate-in fade-in duration-150">
@@ -202,17 +269,32 @@ export function GroupChatView() {
           </div>
         )}
         <div className="flex items-center gap-2 md:gap-3 max-w-4xl mx-auto">
-          <button className="text-gray-400 hover:text-white transition-colors">
-            <Smile className="w-6 h-6" />
+          <button
+            onClick={handleTriggerMention}
+            className="text-gray-400 hover:text-purple-400 transition-colors p-1"
+            title="Mention Member (@all, @online, @member)"
+          >
+            <AtSign className="w-5 h-5" />
           </button>
           <div className="flex-1 flex items-center bg-[#2c2c2e] rounded-3xl px-4 py-2 md:py-3">
             <input
               ref={inputRef}
               type="text"
-              placeholder={replyingTo ? `Reply to ${replyingTo.senderName}...` : "Type a message..."}
+              placeholder={replyingTo ? `Reply to ${replyingTo.senderName}...` : "Type a message or @ to mention..."}
               value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && handleSend()}
+              onChange={handleInputChange}
+              onKeyDown={(e) => {
+                if (mentionQuery !== null) {
+                  if (e.key === "Escape") {
+                    setMentionQuery(null);
+                    return;
+                  }
+                }
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
               className="bg-transparent text-white placeholder-gray-500 outline-none flex-1 text-sm md:text-base"
             />
             <button className="text-gray-400 hover:text-white transition-colors">
