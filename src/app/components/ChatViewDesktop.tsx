@@ -1,6 +1,23 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router";
-import { ArrowLeft, MoreVertical, Send, Paperclip, Phone, Video, Palette, Mic, Trash2, Pin, X, Reply, WifiOff, AtSign } from "lucide-react";
+import {
+  ArrowLeft,
+  MoreVertical,
+  Send,
+  Paperclip,
+  Phone,
+  Video,
+  Smile,
+  Mic,
+  Trash2,
+  Pin,
+  X,
+  Reply,
+  WifiOff,
+  Camera,
+  AtSign,
+  Lock,
+} from "lucide-react";
 import { MessageBubble } from "./MessageBubble";
 import { ChatMenu } from "./ChatMenu";
 import { ForwardMessageModal } from "./ForwardMessageModal";
@@ -13,6 +30,7 @@ import {
   subscribeToChatMetadata,
   sendChatMessage,
   toggleMessageReaction,
+  ensureChatParticipant,
   subscribeToChatDraft,
   saveChatDraft,
   deleteChatDraft,
@@ -51,7 +69,7 @@ export function ChatViewDesktop() {
 
   const [firestoreMessages, setFirestoreMessages] = useState<FirestoreMessage[]>([]);
   const [wallpaper, setWallpaper] = useState(() => {
-    return localStorage.getItem(`anonote_wallpaper_${currentChatId}`) || "bg-[#0a0a0a]";
+    return localStorage.getItem(`anonote_wallpaper_${currentChatId}`) || "bg-[#0b141a]";
   });
 
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
@@ -92,7 +110,7 @@ export function ChatViewDesktop() {
     };
   }, [currentChatId, currentUser.anonId]);
 
-  // Debounced auto-save draft to Firestore
+  // Auto-save draft
   useEffect(() => {
     if (!draftLoadedRef.current) return;
 
@@ -121,11 +139,12 @@ export function ChatViewDesktop() {
 
   // Real-time message listener from Firestore
   useEffect(() => {
+    ensureChatParticipant(currentChatId, currentUser);
     const unsubscribe = subscribeToMessages(currentChatId, (msgs) => {
       setFirestoreMessages(msgs);
     });
     return () => unsubscribe();
-  }, [currentChatId]);
+  }, [currentChatId, currentUser]);
 
   const [liveChatDoc, setLiveChatDoc] = useState<any>(null);
 
@@ -136,7 +155,7 @@ export function ChatViewDesktop() {
     return () => unsub();
   }, [currentChatId]);
 
-  // Dynamic peer/group metadata lookup from chat ID & live doc
+  // Dynamic peer/group metadata lookup
   const chatMeta = (() => {
     if (liveChatDoc?.isGroup) {
       return {
@@ -158,7 +177,6 @@ export function ChatViewDesktop() {
       };
     }
 
-    // If chat ID is a direct chat (chat_anon1__anon2), extract peer ID
     if (currentChatId.startsWith("chat_")) {
       const parts = currentChatId.replace("chat_", "").split("__");
       const myClean = currentUser.anonId.toLowerCase().replace(/[^a-zA-Z0-9]/g, "_");
@@ -174,26 +192,8 @@ export function ChatViewDesktop() {
       };
     }
 
-    if (currentChatId.startsWith("peer_")) {
-      return {
-        name: "Direct Peer",
-        avatar: "👤",
-        isVerified: false,
-        isGroup: false,
-      };
-    }
-
-    if (currentChatId.startsWith("Anon")) {
-      return {
-        name: currentChatId,
-        avatar: "👤",
-        isVerified: false,
-        isGroup: false,
-      };
-    }
-
     return {
-      name: `Anon #${currentChatId.replace(/[^0-9a-zA-Z]/g, "") || currentChatId}`,
+      name: "Encrypted Chat",
       avatar: "👤",
       isVerified: false,
       isGroup: false,
@@ -202,81 +202,29 @@ export function ChatViewDesktop() {
 
   const chatName = chatMeta.name;
   const chatAvatar = chatMeta.avatar;
-  const isChatVerified = chatMeta.isVerified;
+  const isVerified = chatMeta.isVerified;
 
-  // Transform firestore messages to UI bubble format
-  const messages = firestoreMessages.map((m) => ({
-    id: m.id,
-    text: m.text,
-    isSent: m.senderAnonId === currentUser.anonId,
-    timestamp: m.timestamp || "Just now",
-    status: m.status || "delivered",
-    isPending: m.isPending,
-    mediaUrl: m.mediaUrl,
-    mediaType: m.mediaType,
-    senderName: m.senderName || m.senderAnonId,
-    reactions: m.reactions || {},
-  }));
-
-  // Auto-scroll to bottom on new messages
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length]);
-
-  useEffect(() => {
-    localStorage.setItem(`anonote_wallpaper_${currentChatId}`, wallpaper);
-  }, [wallpaper, currentChatId]);
-
-  const handleReact = async (msgId: string, emoji: string) => {
-    await toggleMessageReaction(currentChatId, msgId, emoji, currentUser.anonId);
-  };
-
-  const handleReply = (msg: any) => {
-    setReplyingTo({
-      id: msg.id,
-      text: msg.text,
-      senderName: msg.isSent ? "You" : chatName,
-    });
-    textInputRef.current?.focus();
-  };
-
-  // Extract participants for mentions
-  const participantsList = (() => {
-    if (liveChatDoc?.participants && Array.isArray(liveChatDoc.participants)) {
-      return liveChatDoc.participants.map((pId: string) => {
-        const pData = liveChatDoc.participantData?.[pId];
-        return {
-          anonId: pId,
-          name: pData?.name || pId,
-          avatar: pData?.avatar || "👤",
-        };
-      });
-    }
-    return [
-      { anonId: currentUser.anonId, name: currentUser.name, avatar: currentUser.avatar },
-      { anonId: chatName, name: chatName, avatar: chatAvatar },
-    ];
-  })();
-
-  const allTagCandidates: TagCandidate[] = [
-    { tag: "@all", label: "@all", description: "Notify everyone in this room", isSpecial: true },
-    { tag: "@online", label: "@online", description: "Notify currently active online peers", isSpecial: true },
-    ...participantsList.map((p) => ({
-      tag: `@${p.anonId}`,
-      label: p.name && p.name !== p.anonId ? `${p.name} (${p.anonId})` : p.anonId,
-      description: "Group Participant",
-      avatar: p.avatar,
-    })),
+  // Autocomplete participants list
+  const participantsList: TagCandidate[] = [
+    { anonId: "all", name: "all", avatar: "👥" },
+    { anonId: "online", name: "online", avatar: "🟢" },
   ];
 
-  const filteredTags = allTagCandidates.filter((item) => {
-    if (mentionQuery === null || mentionQuery === "") return true;
-    const cleanQ = mentionQuery.toLowerCase().replace("@", "");
-    return (
-      item.tag.toLowerCase().includes(cleanQ) ||
-      item.label.toLowerCase().includes(cleanQ) ||
-      item.description.toLowerCase().includes(cleanQ)
-    );
+  if (liveChatDoc?.participants && Array.isArray(liveChatDoc.participants)) {
+    liveChatDoc.participants.forEach((pId: string) => {
+      const pData = liveChatDoc.participantData?.[pId];
+      participantsList.push({
+        anonId: pId,
+        name: pData?.name || pId,
+        avatar: pData?.avatar || "👤",
+      });
+    });
+  }
+
+  const filteredTags = participantsList.filter((p) => {
+    if (!mentionQuery) return true;
+    const q = mentionQuery.toLowerCase();
+    return p.name.toLowerCase().includes(q) || p.anonId.toLowerCase().includes(q);
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -284,7 +232,6 @@ export function ChatViewDesktop() {
     const cursor = e.target.selectionStart || val.length;
     setMessage(val);
 
-    // Detect @mention trigger in the word before cursor
     const textBefore = val.slice(0, cursor);
     const match = textBefore.match(/(?:^|\s)@([a-zA-Z0-9_#-]*)$/);
     if (match) {
@@ -326,27 +273,49 @@ export function ChatViewDesktop() {
     }, 10);
   };
 
-  const handleSend = async () => {
-    if (message.trim()) {
-      const textToSend = replyingTo ? `↳ Replying to: "${replyingTo.text.slice(0, 30)}..."\n${message.trim()}` : message.trim();
-      const targetChatId = currentChatId;
-      setMessage("");
-      setReplyingTo(null);
-      setMentionQuery(null);
-      await deleteChatDraft(currentUser.anonId, targetChatId);
-      await sendChatMessage(targetChatId, currentUser, textToSend);
-    }
+  // Convert Firestore messages to bubble props
+  const messages = firestoreMessages.map((m) => ({
+    id: m.id,
+    text: m.text,
+    isSent: m.senderAnonId === currentUser.anonId,
+    timestamp: m.timestamp || new Date(m.createdAt || Date.now()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    status: m.status,
+    isPending: m.isPending,
+    mediaUrl: m.mediaUrl,
+    mediaType: m.mediaType,
+    senderName: m.senderName || m.senderAnonId,
+    reactions: m.reactions || {},
+  }));
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages.length]);
+
+  const handleReact = async (msgId: string, emoji: string) => {
+    await toggleMessageReaction(currentChatId, msgId, emoji, currentUser.anonId);
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64Data = reader.result as string;
-        await sendChatMessage(currentChatId, currentUser, file.name ? `📷 ${file.name}` : "📷 Photo", "image", base64Data);
-      };
-      reader.readAsDataURL(file);
+  const handleReply = (msg: any) => {
+    setReplyingTo({
+      id: msg.id,
+      text: msg.text,
+      senderName: msg.isSent ? "You" : msg.senderName,
+    });
+    textInputRef.current?.focus();
+  };
+
+  const handleSend = async () => {
+    if (!message.trim()) return;
+    const textToSend = message.trim();
+    setMessage("");
+    setReplyingTo(null);
+    setMentionQuery(null);
+    deleteChatDraft(currentUser.anonId, currentChatId);
+
+    try {
+      await sendChatMessage(currentChatId, currentUser, textToSend);
+    } catch (e) {
+      console.error("Failed to send message:", e);
     }
   };
 
@@ -358,163 +327,136 @@ export function ChatViewDesktop() {
       audioChunksRef.current = [];
 
       mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          audioChunksRef.current.push(e.data);
-        }
-      };
-
-      mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-        const reader = new FileReader();
-        reader.onload = async () => {
-          const base64Audio = reader.result as string;
-          await sendChatMessage(
-            currentChatId,
-            currentUser,
-            `Voice Note (${Math.floor(recordingSeconds / 60)}:${(recordingSeconds % 60).toString().padStart(2, "0")})`,
-            "audio",
-            base64Audio
-          );
-        };
-        reader.readAsDataURL(audioBlob);
-        stream.getTracks().forEach((track) => track.stop());
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
       };
 
       mediaRecorder.start();
       setIsRecording(true);
       setRecordingSeconds(0);
+
       timerRef.current = setInterval(() => {
         setRecordingSeconds((prev) => prev + 1);
       }, 1000);
     } catch (err) {
-      console.error("Microphone access error:", err);
+      console.error("Audio recording error:", err);
     }
   };
 
-  const stopRecording = (send: boolean) => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      if (send) {
-        mediaRecorderRef.current.stop();
-      } else {
-        mediaRecorderRef.current.stream?.getTracks().forEach((track) => track.stop());
-        mediaRecorderRef.current.stop();
+  const stopRecording = (shouldSend = true) => {
+    if (!mediaRecorderRef.current) return;
+
+    clearInterval(timerRef.current);
+    mediaRecorderRef.current.onstop = async () => {
+      if (shouldSend && audioChunksRef.current.length > 0) {
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          const base64data = reader.result as string;
+          await sendChatMessage(currentChatId, currentUser, "[Voice Note 🎙️]", "audio", base64data);
+        };
+        reader.readAsDataURL(audioBlob);
       }
-    }
-    setIsRecording(false);
-    setRecordingSeconds(0);
+      mediaRecorderRef.current?.stream.getTracks().forEach((track) => track.stop());
+      setIsRecording(false);
+      setRecordingSeconds(0);
+    };
+
+    mediaRecorderRef.current.stop();
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64Url = reader.result as string;
+      await sendChatMessage(currentChatId, currentUser, file.name, "image", base64Url);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const handleClearChat = () => {
+    setFirestoreMessages([]);
+    setShowMenu(false);
   };
 
   const handleForwardMessage = async (targetChatId: string) => {
     if (!forwardingMsg) return;
-    await sendChatMessage(targetChatId, currentUser, `[Forwarded] ${forwardingMsg}`);
+    await sendChatMessage(targetChatId, currentUser, forwardingMsg);
     setForwardingMsg(null);
   };
 
-  const handleClearChat = () => {
-    if (confirm("Are you sure you want to clear your local view of this chat?")) {
-      setFirestoreMessages([]);
-    }
-  };
-
   return (
-    <div className={`flex flex-col h-full ${wallpaper} relative transition-colors duration-300`}>
-      {/* Hidden File Input for Attachments */}
+    <div className="flex flex-col h-full bg-[#0b141a] text-[#e9edef] select-none relative">
       <input
         type="file"
         ref={fileInputRef}
-        onChange={handleImageUpload}
+        onChange={handleFileUpload}
         accept="image/*"
         className="hidden"
       />
 
-      {/* Header */}
-      <header className="bg-[#181820]/90 backdrop-blur-xl px-4 py-3 flex items-center justify-between border-b border-white/[0.08] z-10 shadow-sm sticky top-0">
-        <div className="flex items-center gap-3 min-w-0">
+      {/* AnoNote Chat View Header */}
+      <header className="bg-[#111b21] px-3 py-2 border-b border-[#202c33] flex items-center justify-between z-20">
+        <div className="flex items-center gap-2 min-w-0">
           <button
             onClick={() => navigate("/")}
-            className="lg:hidden text-gray-400 hover:text-white p-1.5 -ml-1 rounded-xl hover:bg-white/[0.06] transition-colors flex-shrink-0"
-            title="Back to chats"
+            className="text-[#aebac1] hover:text-[#e9edef] p-1.5 -ml-1 rounded-full hover:bg-[#202c33] transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          
-          <Link to={`/chat-info/${currentChatId}`} className="flex items-center gap-3 min-w-0 group">
-            <div className="relative flex-shrink-0">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#2a2a35] to-[#1c1c24] border border-white/15 flex items-center justify-center text-xl shadow-md group-hover:scale-105 transition-transform">
-                {chatAvatar}
-              </div>
-              <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-[#181820]" />
+
+          <Link
+            to={chatMeta.isGroup ? `/group/${currentChatId}/info` : `/chat/${currentChatId}/info`}
+            className="flex items-center gap-3 min-w-0 group"
+          >
+            <div className="w-10 h-10 rounded-full bg-[#202c33] flex items-center justify-center text-xl overflow-hidden flex-shrink-0">
+              {chatAvatar}
             </div>
-            
             <div className="min-w-0">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <h2 className="text-white font-bold text-sm md:text-base truncate group-hover:text-purple-300 transition-colors font-display">
+              <div className="flex items-center gap-1.5">
+                <h2 className="text-[#e9edef] font-medium text-[15px] truncate leading-tight">
                   {chatName}
                 </h2>
-                {isChatVerified && (
-                  <VerifiedBadge size="sm" userName={chatName} />
-                )}
+                {isVerified && <VerifiedBadge size="xs" userName={chatName} />}
               </div>
-              {isOnline ? (
-                queuedCount > 0 ? (
-                  <p className="text-[11px] text-purple-400 font-mono flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-ping inline-block" />
-                    Syncing {queuedCount} queued message{queuedCount > 1 ? 's' : ''}...
-                  </p>
-                ) : chatMeta.isGroup ? (
-                  <p className="text-[11px] text-purple-300 font-mono flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
-                    {chatMeta.participantsCount} participants · Live Sync
-                  </p>
-                ) : (
-                  <p className="text-[11px] text-emerald-400 font-mono flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />
-                    Live Cloud Sync
-                  </p>
-                )
-              ) : (
-                <p className="text-[11px] text-amber-400 font-mono flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
-                  Offline ({queuedCount} queued in Dexie)
-                </p>
-              )}
+              <p className="text-[12px] text-[#8696a0] truncate leading-tight">
+                {chatMeta.isGroup
+                  ? `${chatMeta.participantsCount} members`
+                  : isOnline
+                  ? "online"
+                  : "offline"}
+              </p>
             </div>
           </Link>
         </div>
 
-        <div className="flex items-center gap-1 sm:gap-1.5">
-          <button 
-            onClick={() => setShowWallpaperModal(true)}
-            className="text-gray-400 hover:text-purple-300 p-2 rounded-xl hover:bg-white/[0.08] transition-colors"
-            title="Custom Chat Wallpaper"
-          >
-            <Palette className="w-4 h-4" />
-          </button>
-          
-          <button 
-            onClick={() => navigate(`/call/${currentChatId}`)}
-            className="text-gray-400 hover:text-white p-2 rounded-xl hover:bg-white/[0.08] transition-colors"
-            title="Encrypted Audio Call"
-          >
-            <Phone className="w-4 h-4" />
-          </button>
-          <button 
+        <div className="flex items-center gap-1 text-[#aebac1]">
+          <button
             onClick={() => navigate(`/call/${currentChatId}?video=true`)}
-            className="text-gray-400 hover:text-white p-2 rounded-xl hover:bg-white/[0.08] transition-colors"
-            title="Encrypted Video Call"
+            className="p-2 hover:bg-[#202c33] rounded-full text-[#aebac1] hover:text-[#e9edef] transition-colors"
+            title="Video call"
           >
-            <Video className="w-4 h-4" />
+            <Video className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => navigate(`/call/${currentChatId}`)}
+            className="p-2 hover:bg-[#202c33] rounded-full text-[#aebac1] hover:text-[#e9edef] transition-colors"
+            title="Voice call"
+          >
+            <Phone className="w-5 h-5" />
           </button>
           <div className="relative">
-            <button 
-              onClick={() => setShowMenu(!showMenu)} 
-              className="text-gray-400 hover:text-white p-2 rounded-xl hover:bg-white/[0.08] transition-colors"
-              title="More Options"
+            <button
+              onClick={() => setShowMenu(!showMenu)}
+              className="p-2 hover:bg-[#202c33] rounded-full text-[#aebac1] hover:text-[#e9edef] transition-colors"
+              title="More options"
             >
-              <MoreVertical className="w-4 h-4" />
+              <MoreVertical className="w-5 h-5" />
             </button>
-            <ChatMenu 
+            <ChatMenu
               isOpen={showMenu}
               chatId={currentChatId}
               onClose={() => setShowMenu(false)}
@@ -525,87 +467,77 @@ export function ChatViewDesktop() {
         </div>
       </header>
 
-      {/* Offline Status Alert Banner */}
+      {/* Offline Alert */}
       {!isOnline && (
-        <div className="bg-amber-950/80 border-b border-amber-600/40 px-4 py-2 flex items-center justify-between text-xs text-amber-200 z-10 shadow-md">
-          <div className="flex items-center gap-2 min-w-0">
-            <WifiOff className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 animate-pulse" />
-            <span className="truncate">
-              <strong>Offline Mode Active:</strong> Messages will queue in Dexie and send automatically when connection returns.
-            </span>
+        <div className="bg-[#182229] border-b border-[#202c33] px-4 py-1.5 flex items-center justify-between text-xs text-[#8696a0] z-10">
+          <div className="flex items-center gap-2">
+            <WifiOff className="w-3.5 h-3.5 text-[#f15c6d] flex-shrink-0" />
+            <span>Waiting for network. Messages will send automatically when online.</span>
           </div>
         </div>
       )}
 
-      {/* Pinned Message Banner */}
+      {/* Pinned Message */}
       {pinnedMessage && (
-        <div className="bg-[#181820]/90 backdrop-blur-md border-b border-white/[0.08] px-4 py-2 flex items-center justify-between text-xs text-gray-300 z-10 shadow-sm animate-in fade-in">
-          <div className="flex items-center gap-2 min-w-0">
-            <Pin className="w-3.5 h-3.5 text-purple-400 flex-shrink-0" />
-            <span className="text-gray-400">Pinned:</span>
-            <span className="truncate font-medium text-white">{pinnedMessage.text}</span>
+        <div className="bg-[#111b21] border-b border-[#202c33] px-4 py-1.5 flex items-center justify-between text-xs text-[#8696a0] z-10">
+          <div className="flex items-center gap-2 truncate">
+            <Pin className="w-3.5 h-3.5 text-[#0084ff] flex-shrink-0" />
+            <span className="text-[#e9edef] truncate">{pinnedMessage.text}</span>
           </div>
-          <button 
-            onClick={() => setPinnedMessage(null)}
-            className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-white/10"
-          >
+          <button onClick={() => setPinnedMessage(null)} className="text-[#8696a0] hover:text-[#e9edef] p-1">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
       )}
 
       {/* Messages Scroll Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-2">
-        {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center py-14 px-4 space-y-3">
-            <div className="w-14 h-14 rounded-3xl bg-purple-600/10 border border-purple-500/20 flex items-center justify-center text-3xl shadow-inner">
-              💬
-            </div>
-            <div>
-              <p className="text-gray-200 text-sm font-bold font-display">Encrypted Channel Ready</p>
-              <p className="text-gray-400 text-xs max-w-xs mt-1 leading-relaxed">
-                Messages in this room are end-to-end encrypted and synced live in real-time.
-              </p>
-            </div>
+      <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 space-y-1 bg-[#0b141a]">
+        {/* Centered Encryption Banner */}
+        <div className="flex justify-center my-3">
+          <div className="bg-[#112438] border border-[#1e3a5f] rounded-lg px-3 py-1.5 max-w-sm text-center text-[12px] text-[#93c5fd] flex items-center justify-center gap-1.5">
+            <Lock className="w-3.5 h-3.5 flex-shrink-0 text-[#38bdf8]" />
+            <span>Messages are end-to-end encrypted. No one outside of this chat can read them.</span>
           </div>
-        ) : (
-          messages.map((msg) => (
-            <MessageBubble
-              key={msg.id}
-              {...msg}
-              currentUserAnonId={currentUser.anonId}
-              onReact={(emoji) => handleReact(msg.id, emoji)}
-              onPin={() => setPinnedMessage({ id: msg.id, text: msg.text })}
-              onReply={() => handleReply(msg)}
-              onForward={() => setForwardingMsg(msg.text)}
-            />
-          ))
-        )}
+        </div>
+
+        {/* Date pill */}
+        <div className="flex justify-center my-2">
+          <span className="bg-[#182229] text-[#8696a0] text-[11px] font-medium px-3 py-1 rounded-md shadow-xs select-none">
+            Today
+          </span>
+        </div>
+
+        {messages.map((msg) => (
+          <MessageBubble
+            key={msg.id}
+            {...msg}
+            currentUserAnonId={currentUser.anonId}
+            onReact={(emoji) => handleReact(msg.id, emoji)}
+            onPin={() => setPinnedMessage({ id: msg.id, text: msg.text })}
+            onReply={() => handleReply(msg)}
+            onForward={() => setForwardingMsg(msg.text)}
+          />
+        ))}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Reply Preview Bar */}
+      {/* Reply Banner */}
       {replyingTo && (
-        <div className="bg-[#181820] px-4 py-2 border-t border-white/[0.08] flex items-center justify-between z-10 animate-in slide-in-from-bottom-2">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <Reply className="w-4 h-4 text-purple-400 flex-shrink-0" />
+        <div className="bg-[#111b21] px-4 py-2 border-t border-[#202c33] flex items-center justify-between z-10">
+          <div className="flex items-center gap-2.5 min-w-0 border-l-4 border-[#0084ff] pl-2.5">
             <div className="min-w-0 text-xs">
-              <span className="text-purple-300 font-semibold block">Replying to {replyingTo.senderName}</span>
-              <span className="text-gray-400 truncate block">{replyingTo.text}</span>
+              <span className="text-[#38bdf8] font-medium block">{replyingTo.senderName}</span>
+              <span className="text-[#8696a0] truncate block">{replyingTo.text}</span>
             </div>
           </div>
-          <button 
-            onClick={() => setReplyingTo(null)}
-            className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-white/10"
-          >
+          <button onClick={() => setReplyingTo(null)} className="text-[#8696a0] hover:text-[#e9edef] p-1">
             <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      {/* Footer / Input Bar */}
-      <footer className="bg-[#16161d]/90 backdrop-blur-xl px-3 py-2.5 sm:px-4 sm:py-3 border-t border-white/[0.08] z-10 relative">
-        {/* Mention Autocomplete Popup */}
+      {/* Clean Bottom Input Bar */}
+      <footer className="bg-[#111b21] px-2 py-2 sm:px-3 border-t border-[#202c33] z-10 relative">
         <GroupTagAutocomplete
           isOpen={mentionQuery !== null && filteredTags.length > 0}
           query={mentionQuery || ""}
@@ -615,54 +547,42 @@ export function ChatViewDesktop() {
         />
 
         {isRecording ? (
-          <div className="flex items-center justify-between gap-3 bg-[#22222d] border border-red-500/30 rounded-2xl px-4 py-2 shadow-lg">
+          <div className="flex items-center justify-between gap-3 bg-[#202c33] rounded-full px-4 py-2">
             <div className="flex items-center gap-3">
-              <div className="w-3 h-3 rounded-full bg-red-500 animate-ping" />
-              <span className="text-red-400 font-mono text-sm font-semibold">
-                {Math.floor(recordingSeconds / 60)}:{(recordingSeconds % 60).toString().padStart(2, '0')}
+              <div className="w-2.5 h-2.5 rounded-full bg-[#f15c6d] animate-ping" />
+              <span className="text-[#f15c6d] font-mono text-sm font-semibold">
+                {Math.floor(recordingSeconds / 60)}:{(recordingSeconds % 60).toString().padStart(2, "0")}
               </span>
-              <span className="text-xs text-gray-300 font-medium">Recording voice note...</span>
+              <span className="text-xs text-[#8696a0]">Recording audio...</span>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => stopRecording(false)}
-                className="p-2 text-gray-400 hover:text-red-400 rounded-xl hover:bg-white/10 transition-colors"
-                title="Cancel recording"
-              >
+              <button onClick={() => stopRecording(false)} className="p-2 text-[#8696a0] hover:text-[#f15c6d]">
                 <Trash2 className="w-4 h-4" />
               </button>
               <button
                 onClick={() => stopRecording(true)}
-                className="p-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl transition-all shadow-md active:scale-95"
-                title="Send voice note"
+                className="p-2 bg-[#0084ff] hover:bg-[#0070df] text-white rounded-full"
               >
                 <Send className="w-4 h-4" />
               </button>
             </div>
           </div>
         ) : (
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="text-gray-400 hover:text-purple-300 p-2 sm:p-2.5 rounded-2xl hover:bg-white/[0.08] transition-all flex-shrink-0 active:scale-95"
-              title="Attach Photo"
-            >
-              <Paperclip className="w-5 h-5" />
-            </button>
+          <div className="flex items-center gap-2">
+            {/* Left Pill Container with emoji, input, attachment, and camera */}
+            <div className="flex-1 bg-[#202c33] rounded-full flex items-center px-3 py-1.5 text-[#8696a0]">
+              <button
+                onClick={handleTriggerMention}
+                className="p-1 hover:text-[#e9edef] transition-colors"
+                title="Emoji & Mention"
+              >
+                <Smile className="w-5 h-5" />
+              </button>
 
-            <button
-              onClick={handleTriggerMention}
-              className="text-gray-400 hover:text-purple-300 p-2 sm:p-2.5 rounded-2xl hover:bg-white/[0.08] transition-all flex-shrink-0 active:scale-95 font-bold font-mono text-base"
-              title="Mention member or tag (@all, @online, @anon)"
-            >
-              <AtSign className="w-5 h-5" />
-            </button>
-            
-            <div className="flex-1 bg-[#1e1e28] rounded-2xl flex items-center px-3.5 py-2 sm:px-4 sm:py-2.5 border border-white/[0.08] focus-within:border-purple-500/60 transition-all shadow-inner">
               <input
                 ref={textInputRef}
                 type="text"
-                placeholder={chatMeta.isGroup ? "Type a message or @ to mention..." : `Encrypted message to ${chatName}...`}
+                placeholder="Message"
                 value={message}
                 onChange={handleInputChange}
                 onKeyDown={(e) => {
@@ -696,23 +616,40 @@ export function ChatViewDesktop() {
                     handleSend();
                   }
                 }}
-                className="bg-transparent text-white placeholder-gray-500 outline-none flex-1 text-xs md:text-sm font-normal"
+                className="bg-transparent text-[#e9edef] placeholder-[#8696a0] outline-none flex-1 text-[15px] px-2.5 py-0.5"
               />
+
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="p-1 hover:text-[#e9edef] transition-colors"
+                title="Attach document or photo"
+              >
+                <Paperclip className="w-5 h-5" />
+              </button>
+
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="p-1 hover:text-[#e9edef] transition-colors ml-1"
+                title="Camera"
+              >
+                <Camera className="w-5 h-5" />
+              </button>
             </div>
 
+            {/* Right Blue Circular Action Button */}
             {message.trim() ? (
               <button
                 onClick={handleSend}
-                className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white p-2.5 rounded-2xl transition-all flex-shrink-0 shadow-lg shadow-purple-600/30 active:scale-95"
-                title="Send message"
+                className="w-11 h-11 bg-[#0084ff] hover:bg-[#0070df] text-white rounded-full flex items-center justify-center flex-shrink-0 transition-transform active:scale-95"
+                title="Send"
               >
-                <Send className="w-4 h-4" />
+                <Send className="w-5 h-5" />
               </button>
             ) : (
               <button
                 onClick={startRecording}
-                className="text-gray-400 hover:text-purple-300 p-2.5 rounded-2xl hover:bg-white/[0.08] transition-all flex-shrink-0 active:scale-95"
-                title="Hold or tap to record voice note"
+                className="w-11 h-11 bg-[#0084ff] hover:bg-[#0070df] text-white rounded-full flex items-center justify-center flex-shrink-0 transition-transform active:scale-95"
+                title="Voice note"
               >
                 <Mic className="w-5 h-5" />
               </button>
@@ -721,7 +658,6 @@ export function ChatViewDesktop() {
         )}
       </footer>
 
-      {/* Forward Modal */}
       {forwardingMsg && (
         <ForwardMessageModal
           isOpen={!!forwardingMsg}
@@ -730,7 +666,6 @@ export function ChatViewDesktop() {
         />
       )}
 
-      {/* Wallpaper Modal */}
       <WallpaperModal
         isOpen={showWallpaperModal}
         onClose={() => setShowWallpaperModal(false)}

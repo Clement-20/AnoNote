@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { ArrowLeft, Search, UserPlus, Sparkles, Copy, Check } from "lucide-react";
+import { ArrowLeft, Search, UserPlus, Users, QrCode, MoreVertical } from "lucide-react";
 import { VerifiedBadge } from "./VerifiedBadge";
 import { useAuth } from "../context/AuthContext";
 import { ConnectModal } from "./ConnectModal";
@@ -8,11 +8,12 @@ import { subscribeToActiveUsers, getOrCreateDirectChat } from "../services/chatS
 
 export function NewChat() {
   const navigate = useNavigate();
-  const { currentUser, getConnectUrl } = useAuth();
+  const { currentUser } = useAuth();
   const [search, setSearch] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
   const [customAnonId, setCustomAnonId] = useState("");
+  const [showCustomInput, setShowCustomInput] = useState(false);
   const [showConnectModal, setShowConnectModal] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [activeUsers, setActiveUsers] = useState<any[]>([]);
 
   useEffect(() => {
@@ -26,13 +27,6 @@ export function NewChat() {
     u.anonId?.toLowerCase().includes(search.toLowerCase()) ||
     u.name?.toLowerCase().includes(search.toLowerCase())
   );
-
-  const handleCopyLink = () => {
-    const url = getConnectUrl(currentUser.anonId);
-    navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   const handleStartChatWithAnon = async (targetId?: string) => {
     const raw = (targetId || customAnonId).trim();
@@ -62,164 +56,164 @@ export function NewChat() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#0a0a0a]">
-      {/* Header */}
-      <header className="bg-[#1c1c1e] px-4 py-3 border-b border-gray-800">
-        <div className="flex items-center gap-3 mb-3">
+    <div className="flex flex-col h-screen bg-[#0b141a] text-[#e9edef] select-none">
+      {/* Select Contact Header */}
+      <header className="bg-[#111b21] px-4 py-3 border-b border-[#202c33] flex items-center justify-between">
+        <div className="flex items-center gap-3">
           <button
             onClick={() => navigate("/")}
-            className="text-gray-400 hover:text-white p-1 -ml-1 transition-colors"
+            className="text-[#aebac1] hover:text-[#e9edef] p-1 -ml-1 rounded-full hover:bg-[#202c33] transition-colors"
           >
-            <ArrowLeft className="w-6 h-6" />
+            <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-white font-semibold text-lg">New Direct Chat</h1>
-            <p className="text-xs text-purple-400">
-              {activeUsers.length} Active {activeUsers.length === 1 ? "Peer" : "Peers"} on Cloud Network
+            <h1 className="text-[#e9edef] font-medium text-[16px]">Select contact</h1>
+            <p className="text-[12px] text-[#8696a0]">
+              {activeUsers.length + 1} contacts
             </p>
           </div>
         </div>
 
-        {/* Search Input */}
-        <div className="flex items-center bg-[#2c2c2e] rounded-xl px-3 py-2 border border-gray-700/50">
-          <Search className="w-4 h-4 text-gray-500 mr-2" />
-          <input
-            type="text"
-            placeholder="Search active peers or enter Anon ID..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="bg-transparent text-white placeholder-gray-500 outline-none flex-1 text-sm"
-          />
+        <div className="flex items-center gap-3 text-[#aebac1]">
+          <button
+            onClick={() => setShowSearch(!showSearch)}
+            className="p-1 hover:text-[#e9edef] transition-colors"
+          >
+            <Search className="w-5 h-5" />
+          </button>
+          <button className="p-1 hover:text-[#e9edef] transition-colors">
+            <MoreVertical className="w-5 h-5" />
+          </button>
         </div>
       </header>
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-y-auto">
-        {/* Create Group Chat Action */}
-        <div className="p-4 border-b border-gray-800 bg-[#16161a]">
-          <button
-            onClick={() => navigate("/new-group")}
-            className="w-full flex items-center justify-between p-3.5 bg-gradient-to-r from-purple-900/30 to-indigo-900/30 hover:from-purple-900/50 hover:to-indigo-900/50 border border-purple-500/40 rounded-2xl transition-all shadow-md active:scale-98 group text-left"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 text-white flex items-center justify-center text-xl shadow-lg shadow-purple-600/30">
-                👥
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-white group-hover:text-purple-300 transition-colors">
-                  Create New Encrypted Group
-                </h3>
-                <p className="text-xs text-gray-400">
-                  Group chat with multiple anonymous peers in real-time
-                </p>
-              </div>
-            </div>
-            <span className="px-3 py-1.5 bg-purple-600 text-white font-bold text-xs rounded-xl shadow-sm">
-              New Group
-            </span>
-          </button>
-        </div>
-
-        {/* Connect With Any Anon ID */}
-        <div className="p-4 border-b border-gray-800 bg-[#141416]">
-          <label className="text-xs font-semibold text-gray-300 uppercase tracking-wider block mb-2">
-            Start Chat with any Anon ID
-          </label>
-          <div className="flex gap-2">
+      {/* Search Bar if toggled */}
+      {showSearch && (
+        <div className="p-3 bg-[#111b21] border-b border-[#202c33]">
+          <div className="flex items-center bg-[#202c33] rounded-full px-3.5 py-1.5 text-[#8696a0]">
+            <Search className="w-4 h-4 mr-2.5" />
             <input
               type="text"
-              placeholder="e.g. Anon #4819 or paste invite link"
-              value={customAnonId}
-              onChange={(e) => setCustomAnonId(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleStartChatWithAnon()}
-              className="flex-1 bg-[#2c2c2e] border border-purple-500/30 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-500 outline-none focus:border-purple-500 transition-colors font-mono"
+              placeholder="Search contacts..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="bg-transparent text-[#e9edef] placeholder-[#8696a0] outline-none flex-1 text-sm"
+              autoFocus
             />
+          </div>
+        </div>
+      )}
+
+      {/* Main List */}
+      <div className="flex-1 overflow-y-auto">
+        {/* Top Action Rows */}
+        <div className="border-b border-[#202c33]/40">
+          {/* New Group */}
+          <div
+            onClick={() => navigate("/new-group")}
+            className="flex items-center gap-3.5 px-4 py-3 hover:bg-[#202c33]/40 transition-colors cursor-pointer"
+          >
+            <div className="w-11 h-11 rounded-full bg-[#0084ff] flex items-center justify-center text-white">
+              <Users className="w-5 h-5" />
+            </div>
+            <span className="font-medium text-[15px] text-[#e9edef]">New group</span>
+          </div>
+
+          {/* New Contact / Any Anon ID */}
+          <div
+            onClick={() => setShowCustomInput(!showCustomInput)}
+            className="flex items-center justify-between px-4 py-3 hover:bg-[#202c33]/40 transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-full bg-[#0084ff] flex items-center justify-center text-white">
+                <UserPlus className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="font-medium text-[15px] text-[#e9edef] block">New contact / Anon ID</span>
+                <span className="text-[12px] text-[#8696a0]">Chat directly with any Anon ID</span>
+              </div>
+            </div>
             <button
-              onClick={() => handleStartChatWithAnon()}
-              disabled={!customAnonId.trim()}
-              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-md shadow-purple-600/20"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowConnectModal(true);
+              }}
+              className="text-[#0084ff] p-2 hover:bg-[#202c33] rounded-full"
+              title="QR code"
             >
-              <UserPlus className="w-4 h-4" />
-              Chat
+              <QrCode className="w-5 h-5" />
             </button>
+          </div>
+
+          {/* Input field if expanded */}
+          {showCustomInput && (
+            <div className="px-4 py-2.5 bg-[#111b21] flex gap-2">
+              <input
+                type="text"
+                placeholder="Type Anon ID (e.g. Anon #4819)..."
+                value={customAnonId}
+                onChange={(e) => setCustomAnonId(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleStartChatWithAnon()}
+                className="flex-1 bg-[#202c33] border border-[#2a3942] rounded-lg px-3 py-2 text-sm text-[#e9edef] placeholder-[#8696a0] outline-none"
+                autoFocus
+              />
+              <button
+                onClick={() => handleStartChatWithAnon()}
+                disabled={!customAnonId.trim()}
+                className="px-4 py-2 bg-[#0084ff] hover:bg-[#0070df] text-white font-semibold text-xs rounded-lg disabled:opacity-40"
+              >
+                Chat
+              </button>
+            </div>
+          )}
+
+          {/* New Community */}
+          <div
+            onClick={() => navigate("/new-group")}
+            className="flex items-center gap-3.5 px-4 py-3 hover:bg-[#202c33]/40 transition-colors cursor-pointer"
+          >
+            <div className="w-11 h-11 rounded-full bg-[#0084ff] flex items-center justify-center text-white">
+              <Users className="w-5 h-5" />
+            </div>
+            <span className="font-medium text-[15px] text-[#e9edef]">New community</span>
           </div>
         </div>
 
-        {/* Share your personal link */}
-        <div className="p-4 border-b border-gray-800 bg-[#1a1a1c]/60 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-400">
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-white">Share Your Invite Link</p>
-              <p className="text-xs text-gray-400 font-mono">{currentUser.anonId}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleCopyLink}
-              className="px-3 py-1.5 bg-[#2c2c2e] hover:bg-[#3c3c3e] text-purple-300 border border-purple-500/30 rounded-lg text-xs font-medium flex items-center gap-1 transition-colors"
-            >
-              {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{copied ? "Copied!" : "Copy"}</span>
-            </button>
-            <button
-              onClick={() => setShowConnectModal(true)}
-              className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-medium transition-colors"
-            >
-              Share
-            </button>
-          </div>
+        {/* Contacts Header */}
+        <div className="px-4 pt-4 pb-2">
+          <p className="text-[13px] font-medium text-[#8696a0]">Contacts on anoNote</p>
         </div>
 
-        {/* Real Network Users List */}
-        <div className="p-4">
-          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-            Real Network Peers ({filteredUsers.length})
-          </h2>
-
+        {/* Contacts List */}
+        <div className="divide-y divide-[#202c33]/30">
           {filteredUsers.length === 0 ? (
-            <div className="text-center py-12 px-4 space-y-2">
-              <p className="text-gray-400 text-sm">No other real peers found yet.</p>
-              <p className="text-gray-600 text-xs max-w-xs mx-auto">
-                Share your invite link with your friend on WhatsApp, Telegram, or SMS to connect and chat in real time!
-              </p>
+            <div className="text-center py-10 px-4 text-[#8696a0] text-xs">
+              No active peers discovered right now. Use the "New contact" option above or share your invite link.
             </div>
           ) : (
-            <div className="space-y-2">
-              {filteredUsers.map((u: any) => (
-                <div
-                  key={u.anonId}
-                  onClick={() => handleStartChatWithAnon(u.anonId)}
-                  className="flex items-center justify-between p-3 bg-[#1c1c1e] hover:bg-[#2c2c2e] border border-gray-800 hover:border-purple-500/30 rounded-xl cursor-pointer transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[#2c2c2e] border border-purple-500/30 flex items-center justify-center text-xl">
-                      {u.avatar || "👤"}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-sm font-semibold text-white">{u.anonId}</span>
-                        {u.isVerified && <VerifiedBadge size="xs" userName={u.name || u.anonId} />}
-                      </div>
-                      <p className="text-xs text-gray-400">{u.about || "Active anonymous peer"}</p>
-                    </div>
-                  </div>
-                  <button className="px-3 py-1.5 bg-purple-600/20 text-purple-300 border border-purple-500/40 rounded-lg text-xs font-medium hover:bg-purple-600 hover:text-white transition-colors">
-                    Chat
-                  </button>
+            filteredUsers.map((u: any) => (
+              <div
+                key={u.anonId}
+                onClick={() => handleStartChatWithAnon(u.anonId)}
+                className="flex items-center gap-3.5 px-4 py-3 hover:bg-[#202c33]/40 transition-colors cursor-pointer"
+              >
+                <div className="w-11 h-11 rounded-full bg-[#202c33] flex items-center justify-center text-xl flex-shrink-0">
+                  {u.avatar || "👤"}
                 </div>
-              ))}
-            </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="font-medium text-[15px] text-[#e9edef] truncate">{u.name || u.anonId}</h3>
+                    {u.isVerified && <VerifiedBadge size="xs" userName={u.name || u.anonId} />}
+                  </div>
+                  <p className="text-[13px] text-[#8696a0] truncate">{u.about || "Hey there! I am using anoNote."}</p>
+                </div>
+              </div>
+            ))
           )}
         </div>
       </div>
 
-      <ConnectModal
-        isOpen={showConnectModal}
-        onClose={() => setShowConnectModal(false)}
-      />
+      <ConnectModal isOpen={showConnectModal} onClose={() => setShowConnectModal(false)} />
     </div>
   );
 }

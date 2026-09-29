@@ -1,4 +1,5 @@
 import { VerifiedBadge } from "./VerifiedBadge";
+import { Check, CheckCheck } from "lucide-react";
 
 interface ChatListItemProps {
   id?: string;
@@ -10,6 +11,7 @@ interface ChatListItemProps {
   isVerified?: boolean;
   draft?: string;
   isActive?: boolean;
+  status?: "sent" | "delivered" | "read";
 }
 
 export function ChatListItem({
@@ -21,60 +23,57 @@ export function ChatListItem({
   isVerified = false,
   draft,
   isActive = false,
+  status = "read",
 }: ChatListItemProps) {
   return (
     <div
-      className={`group relative flex items-center gap-3.5 px-3.5 py-3 mx-2 my-1 rounded-2xl transition-all duration-150 cursor-pointer ${
-        isActive
-          ? "bg-purple-600/15 border border-purple-500/30 text-white shadow-sm"
-          : "hover:bg-white/[0.05] border border-transparent text-gray-300"
+      className={`group flex items-center gap-3.5 px-4 py-3 transition-colors cursor-pointer border-b border-[#202c33]/50 ${
+        isActive ? "bg-[#202c33]" : "hover:bg-[#202c33]/40 bg-transparent"
       }`}
     >
-      {/* Left accent indicator for active chat */}
-      {isActive && (
-        <div className="absolute left-0 top-3 bottom-3 w-1 bg-gradient-to-b from-purple-500 to-indigo-500 rounded-r-full shadow-sm shadow-purple-500/50" />
-      )}
-
-      {/* Avatar Container */}
+      {/* Circle Avatar */}
       <div className="relative flex-shrink-0">
-        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#2a2a35] to-[#1c1c24] border border-white/10 flex items-center justify-center text-2xl shadow-md group-hover:scale-105 transition-transform duration-200">
-          {avatar}
+        <div className="w-12 h-12 rounded-full bg-[#202c33] flex items-center justify-center text-2xl overflow-hidden select-none">
+          {avatar || "👤"}
         </div>
         {isVerified && (
-          <div className="absolute -bottom-1 -right-1 bg-[#121214] rounded-full p-0.5 shadow-sm">
+          <div className="absolute -bottom-0.5 -right-0.5 bg-[#111b21] rounded-full p-0.5">
             <VerifiedBadge size="xs" userName={name} interactive={false} />
           </div>
         )}
       </div>
 
-      {/* Chat info */}
+      {/* Chat Row Details */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-1.5 min-w-0">
-            <h3 className={`font-semibold text-sm truncate ${isActive ? "text-white font-bold" : "text-gray-100 group-hover:text-purple-300 transition-colors"}`}>
+            <h3 className="font-medium text-[15px] text-[#e9edef] truncate">
               {name}
             </h3>
-            {isVerified && <VerifiedBadge size="sm" userName={name} />}
+            {isVerified && <VerifiedBadge size="xs" userName={name} />}
           </div>
-          <span className="text-[11px] font-mono text-gray-400 tabular-nums flex-shrink-0 ml-2">
+          <span className={`text-[12px] tabular-nums flex-shrink-0 ml-2 ${unread > 0 ? "text-[#38bdf8] font-medium" : "text-[#8696a0]"}`}>
             {timestamp}
           </span>
         </div>
 
         <div className="flex items-center justify-between gap-2">
           {draft ? (
-            <p className="text-xs truncate flex items-center gap-1">
-              <span className="text-emerald-400 font-semibold uppercase tracking-wider text-[10px]">Draft:</span>
-              <span className="text-gray-300 italic">{draft}</span>
+            <p className="text-[13px] truncate flex items-center gap-1">
+              <span className="text-[#38bdf8] font-medium">Draft:</span>
+              <span className="text-[#8696a0]">{draft}</span>
             </p>
           ) : (
-            <p className="text-xs text-gray-400/90 truncate group-hover:text-gray-300 transition-colors">
-              {lastMessage}
-            </p>
+            <div className="flex items-center gap-1 text-[13px] text-[#8696a0] truncate">
+              {status === "read" && <CheckCheck className="w-4 h-4 text-[#38bdf8] flex-shrink-0" />}
+              {status === "delivered" && <CheckCheck className="w-4 h-4 text-[#8696a0] flex-shrink-0" />}
+              {status === "sent" && <Check className="w-4 h-4 text-[#8696a0] flex-shrink-0" />}
+              <span className="truncate">{lastMessage || "No messages yet"}</span>
+            </div>
           )}
 
           {unread > 0 && (
-            <span className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-[10.5px] font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center flex-shrink-0 shadow-md shadow-purple-600/30 animate-in zoom-in-50">
+            <span className="bg-[#0084ff] text-white text-[11px] font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center flex-shrink-0">
               {unread}
             </span>
           )}

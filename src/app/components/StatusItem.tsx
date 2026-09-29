@@ -3,34 +3,34 @@ interface StatusItemProps {
   avatar: string;
   timestamp: string;
   viewed: boolean;
+  onClick?: () => void;
 }
 
-export function StatusItem({ name, avatar, timestamp, viewed }: StatusItemProps) {
+export function StatusItem({ name, avatar, timestamp, viewed, onClick }: StatusItemProps) {
   return (
-    <div className="flex items-center gap-3 px-4 py-3 hover:bg-[#1c1c1e] border-b border-gray-800 transition-colors cursor-pointer">
+    <div
+      onClick={onClick}
+      className="flex items-center gap-3.5 px-4 py-2.5 hover:bg-[#202c33]/40 transition-colors cursor-pointer"
+    >
       {/* Avatar with status ring */}
       <div className="relative flex-shrink-0">
         <div
-          className={`w-14 h-14 rounded-full p-0.5 ${
-            viewed
-              ? "bg-gray-600"
-              : "bg-gradient-to-br from-purple-500 via-pink-500 to-purple-600"
+          className={`w-13 h-13 rounded-full p-[2.5px] ${
+            viewed ? "border-2 border-[#8696a0]/40" : "border-2 border-[#0084ff]"
           }`}
         >
-          <div className="w-full h-full rounded-full bg-[#111111] p-1.5">
-            <div className="w-full h-full rounded-full bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center text-xl">
-              {avatar}
-            </div>
+          <div className="w-full h-full rounded-full bg-[#202c33] flex items-center justify-center text-xl overflow-hidden">
+            {avatar}
           </div>
         </div>
       </div>
 
       {/* Status info */}
       <div className="flex-1 min-w-0">
-        <h3 className={`font-medium truncate ${viewed ? "text-gray-400" : "text-white"}`}>
+        <h3 className={`font-medium text-[15px] truncate ${viewed ? "text-[#8696a0]" : "text-[#e9edef]"}`}>
           {name}
         </h3>
-        <p className="text-sm text-gray-400 truncate">{timestamp}</p>
+        <p className="text-[13px] text-[#8696a0] truncate">{timestamp}</p>
       </div>
     </div>
   );

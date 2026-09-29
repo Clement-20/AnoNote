@@ -12,6 +12,7 @@ import {
   onSnapshot,
   addDoc,
   serverTimestamp,
+  arrayUnion,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { offlineDb, CachedMessage } from "../lib/offlineDb";
@@ -271,6 +272,58 @@ export async function createGroupChat(
   });
 
   return groupId;
+}
+
+// Automatically register and ensure a participant is in the chat/group document
+export async function ensureChatParticipant(chatId: string, currentUser: UserAccount) {
+  if (!chatId || !currentUser?.anonId) return;
+  try {
+    const chatRef = doc(db, "chats", chatId);
+    const snap = await getDoc(chatRef);
+    const nowIso = new Date().toISOString();
+
+    if (!snap.exists()) {
+      const isGroup = chatId.startsWith("group_") || chatId.startsWith("g") || chatId.includes("group");
+      await setDoc(
+        chatRef,
+        {
+          id: chatId,
+          isGroup,
+          groupName: isGroup ? "Encrypted Group" : undefined,
+          groupAvatar: isGroup ? "👥" : undefined,
+          participants: [currentUser.anonId],
+          participantData: {
+            [currentUser.anonId]: {
+              name: currentUser.name,
+              avatar: currentUser.avatar,
+              isVerified: !!currentUser.isVerified,
+            },
+          },
+          lastMessage: isGroup ? "Group conversation started" : "Encrypted chat active",
+          lastMessageTimestamp: nowIso,
+          lastSenderId: currentUser.anonId,
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        },
+        { merge: true }
+      );
+    } else {
+      const data = snap.data();
+      const participants: string[] = Array.isArray(data.participants) ? data.participants : [];
+      if (!participants.includes(currentUser.anonId)) {
+        await updateDoc(chatRef, {
+          participants: arrayUnion(currentUser.anonId),
+          [`participantData.${currentUser.anonId}`]: {
+            name: currentUser.name,
+            avatar: currentUser.avatar,
+            isVerified: !!currentUser.isVerified,
+          },
+        });
+      }
+    }
+  } catch (err) {
+    console.warn("[Firestore] ensureChatParticipant:", err);
+  }
 }
 
 // Subscribe to real-time messages with Dexie.js IndexedDB storage layer

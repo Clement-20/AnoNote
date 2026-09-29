@@ -152,7 +152,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "group/:id",
-        Component: GroupChatView,
+        Component: ChatViewDesktop,
         errorElement: <RouteErrorBoundary />,
       },
       {

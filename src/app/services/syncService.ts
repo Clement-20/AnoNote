@@ -47,7 +47,6 @@ export async function processOutgoingQueue(): Promise<void> {
       if (!item.id || !item.localId) continue;
 
       try {
-        // Idempotent doc reference using localId as the unique document key
         const messageDocRef = doc(db, "chats", item.chatId, "messages", item.localId);
         
         await setDoc(
@@ -69,14 +68,16 @@ export async function processOutgoingQueue(): Promise<void> {
         // Update parent chat doc
         const chatRef = doc(db, "chats", item.chatId);
         const nowIso = new Date().toISOString();
-        updateDoc(chatRef, {
-          lastMessage: item.text || `[${item.mediaType || "Media"}]`,
-          lastMessageTimestamp: nowIso,
-          lastSenderId: item.senderAnonId,
-          updatedAt: nowIso,
-        }).catch(() => {
-          // Non-critical
-        });
+        setDoc(
+          chatRef,
+          {
+            lastMessage: item.text || `[${item.mediaType || "Media"}]`,
+            lastMessageTimestamp: nowIso,
+            lastSenderId: item.senderAnonId,
+            updatedAt: nowIso,
+          },
+          { merge: true }
+        ).catch(() => {});
 
         // Update local Dexie cached message to delivered status
         await offlineDb.cachedMessages.put({
@@ -118,7 +119,7 @@ export async function processOutgoingQueue(): Promise<void> {
   }
 }
 
-// Add an outgoing message to the Dexie queue and trigger sync
+// Add an outgoing message to the Dexie queue and trigger immediate direct Firestore write
 export async function queueAndSendMessage(
   chatId: string,
   sender: UserAccount,
@@ -162,11 +163,58 @@ export async function queueAndSendMessage(
   });
 
   // 2. Add to Dexie outgoing persistent queue
-  await offlineDb.outgoingQueue.add(queuedItem);
+  const queueKey = await offlineDb.outgoingQueue.add(queuedItem);
   notifyQueueChange();
 
-  // 3. Trigger queue processor
-  processOutgoingQueue();
+  // 3. Immediately write directly to Firestore for sub-millisecond real-time delivery
+  const messageDocRef = doc(db, "chats", chatId, "messages", localId);
+  const chatRef = doc(db, "chats", chatId);
+  const nowIso = new Date().toISOString();
+
+  setDoc(
+    messageDocRef,
+    {
+      text: text.trim(),
+      senderAnonId: sender.anonId,
+      senderName: sender.name,
+      senderAvatar: sender.avatar,
+      timestamp: timeFormatted,
+      createdAt: serverTimestamp(),
+      mediaType: mediaType || null,
+      mediaUrl: mediaUrl || null,
+      status: "delivered",
+    },
+    { merge: true }
+  )
+    .then(async () => {
+      // Update chat metadata in Firestore
+      setDoc(
+        chatRef,
+        {
+          lastMessage: text.trim() || `[${mediaType || "Media"}]`,
+          lastMessageTimestamp: nowIso,
+          lastSenderId: sender.anonId,
+          updatedAt: nowIso,
+        },
+        { merge: true }
+      ).catch(() => {});
+
+      // Successfully synced to Firestore: remove from queue & mark cached message as delivered
+      try {
+        if (queueKey) {
+          await offlineDb.outgoingQueue.delete(queueKey);
+          notifyQueueChange();
+        }
+        await offlineDb.cachedMessages.update(localId, {
+          status: "delivered",
+          isPending: false,
+        });
+      } catch {}
+    })
+    .catch((err) => {
+      console.warn("[Realtime Write] Direct write deferred to background queue processor:", err);
+      processOutgoingQueue();
+    });
 
   return localId;
 }

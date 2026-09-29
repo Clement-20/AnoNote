@@ -1,7 +1,6 @@
 {
-  "name": "anoNote - Secure Anonymous Messenger",
-  "description": "anoNote is an encrypted anonymous messaging platform for anoNote.icepab.name.ng with unique Anon IDs, end-to-end encryption, and real-time chat & voice calling.",
+  "name": "AnoNote - Secure Anonymous Messenger",
+  "description": "AnoNote is an encrypted anonymous messaging platform with unique Anon IDs, end-to-end encryption, and real-time chat & voice calling.",
   "requestFramePermissions": ["microphone", "camera"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
-
