@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { 
   Phone, 
   Video, 
@@ -9,10 +9,12 @@ import {
   Smile, 
   Mic, 
   Send, 
+  Check,
   CheckCheck, 
   Lock,
   Play,
-  Image as ImageIcon
+  Image as ImageIcon,
+  ChevronDown
 } from 'lucide-react';
 import { Chat, Message, User } from '../types';
 
@@ -40,14 +42,76 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const isInitialScrollDoneRef = useRef(false);
+  const isNearBottomRef = useRef(true);
+  const prevChatIdRef = useRef(chat.id);
+  const prevCountRef = useRef(messages.length);
+  const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
 
   const partner = chat.isGroup
     ? { id: 'group', name: chat.name || 'Group Chat', avatar: chat.avatar || '', anonId: 'Encrypted Group', online: true, about: 'Group security enabled' }
     : chat.participants.find(p => p.id !== currentUser.id) || chat.participants[0];
 
+  // Ensure messages are consistently arranged from oldest (top) to newest (downwards at bottom)
+  const sortedMessages = [...messages].sort((a, b) => a.timestamp - b.timestamp);
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isTyping]);
+    if (prevChatIdRef.current !== chat.id) {
+      prevChatIdRef.current = chat.id;
+      isInitialScrollDoneRef.current = false;
+      isNearBottomRef.current = true;
+      setShowScrollBottomBtn(false);
+      prevCountRef.current = 0;
+    }
+  }, [chat.id]);
+
+  useLayoutEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    if (!isInitialScrollDoneRef.current && sortedMessages.length > 0) {
+      // Instantly position to bottom with 0ms delay so latest messages are visible immediately
+      container.scrollTop = container.scrollHeight;
+      requestAnimationFrame(() => {
+        if (container) {
+          container.scrollTop = container.scrollHeight;
+        }
+      });
+      isInitialScrollDoneRef.current = true;
+      prevCountRef.current = sortedMessages.length;
+      return;
+    }
+
+    if (sortedMessages.length > prevCountRef.current || isTyping) {
+      const lastMsg = sortedMessages[sortedMessages.length - 1];
+      const isSentByMe = lastMsg?.senderId === currentUser.id;
+
+      // Only auto-scroll down if sent by me or if already at bottom reading latest
+      if (isSentByMe || isNearBottomRef.current) {
+        container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+      }
+    }
+    prevCountRef.current = sortedMessages.length;
+  }, [chat.id, sortedMessages.length, isTyping, currentUser.id]);
+
+  const handleScroll = () => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const isAtBottom = distanceFromBottom < 100;
+    isNearBottomRef.current = isAtBottom;
+    setShowScrollBottomBtn(!isAtBottom);
+  };
+
+  const scrollToBottom = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({
+        top: scrollContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  };
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,8 +196,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       </div>
 
       {/* Message List */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 z-10">
-        {messages.map((msg) => {
+      <div 
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 z-10 relative"
+      >
+        {sortedMessages.map((msg) => {
           const isMe = msg.senderId === currentUser.id;
 
           return (
@@ -177,7 +245,15 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                 <div className={`flex items-center justify-end gap-1 mt-1 text-[10px] ${isMe ? 'text-blue-100' : 'text-[#8696a0]'}`}>
                   {msg.isEncrypted && <Lock className="w-2.5 h-2.5" />}
                   <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                  {isMe && <CheckCheck className="w-3.5 h-3.5 text-white" />}
+                  {isMe && (
+                    msg.status === 'read' ? (
+                      <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" title="Read" />
+                    ) : msg.status === 'delivered' ? (
+                      <CheckCheck className="w-3.5 h-3.5 text-[#8696a0]" title="Delivered (recipient online)" />
+                    ) : (
+                      <Check className="w-3.5 h-3.5 text-[#8696a0]" title="Sent (recipient offline)" />
+                    )
+                  )}
                 </div>
               </div>
             </div>
@@ -192,6 +268,17 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Floating Scroll to Bottom Button */}
+      {showScrollBottomBtn && (
+        <button
+          onClick={scrollToBottom}
+          className="absolute bottom-20 right-6 z-30 w-10 h-10 rounded-full bg-[#202c33] hover:bg-[#2a3942] text-[#8696a0] hover:text-[#e9edef] shadow-2xl border border-[#2e3b44] flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 animate-in fade-in"
+          title="Scroll to latest messages"
+        >
+          <ChevronDown className="w-5 h-5 text-[#00a8fc]" />
+        </button>
+      )}
 
       {/* Input Bar */}
       <div className="p-3 bg-[#202c33] border-t border-[#222d34] z-10 flex items-center gap-3 relative">

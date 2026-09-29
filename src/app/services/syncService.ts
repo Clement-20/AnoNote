@@ -1,10 +1,32 @@
-import { collection, doc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { collection, doc, setDoc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { offlineDb, OutgoingQueuedMessage, CachedMessage } from "../lib/offlineDb";
 import { UserAccount } from "../context/AuthContext";
 
 type QueueChangeListener = (queuedCount: number) => void;
 const queueChangeListeners: Set<QueueChangeListener> = new Set();
+
+export async function resolveRecipientOnline(chatId: string, senderAnonId: string): Promise<boolean> {
+  try {
+    if (chatId.startsWith("chat_")) {
+      const parts = chatId.replace("chat_", "").split("__");
+      const myClean = senderAnonId.toLowerCase().replace(/[^a-zA-Z0-9]/g, "_");
+      const peerClean = parts.find((p) => p !== myClean) || parts[0];
+      const peerRef = doc(db, "users", peerClean);
+      const snap = await getDoc(peerRef);
+      if (snap.exists()) {
+        const pData = snap.data();
+        if (pData.isOnline) {
+          const lastActiveTime = pData.lastActive ? new Date(pData.lastActive).getTime() : 0;
+          if (Date.now() - lastActiveTime < 90 * 1000) {
+            return true;
+          }
+        }
+      }
+    }
+  } catch {}
+  return false;
+}
 
 export function subscribeToQueueCount(listener: QueueChangeListener) {
   queueChangeListeners.add(listener);
@@ -49,6 +71,9 @@ export async function processOutgoingQueue(): Promise<void> {
       try {
         const messageDocRef = doc(db, "chats", item.chatId, "messages", item.localId);
         
+        const isOnline = await resolveRecipientOnline(item.chatId, item.senderAnonId);
+        const resolvedStatus: "sent" | "delivered" = isOnline ? "delivered" : "sent";
+
         await setDoc(
           messageDocRef,
           {
@@ -60,7 +85,7 @@ export async function processOutgoingQueue(): Promise<void> {
             createdAt: serverTimestamp(),
             mediaType: item.mediaType || null,
             mediaUrl: item.mediaUrl || null,
-            status: "delivered",
+            status: resolvedStatus,
           },
           { merge: true }
         );
@@ -74,12 +99,13 @@ export async function processOutgoingQueue(): Promise<void> {
             lastMessage: item.text || `[${item.mediaType || "Media"}]`,
             lastMessageTimestamp: nowIso,
             lastSenderId: item.senderAnonId,
+            lastMessageStatus: resolvedStatus,
             updatedAt: nowIso,
           },
           { merge: true }
         ).catch(() => {});
 
-        // Update local Dexie cached message to delivered status
+        // Update local Dexie cached message to delivered or sent status
         await offlineDb.cachedMessages.put({
           id: item.localId,
           chatId: item.chatId,
@@ -91,7 +117,7 @@ export async function processOutgoingQueue(): Promise<void> {
           createdAtTimestamp: item.createdAt,
           mediaType: item.mediaType,
           mediaUrl: item.mediaUrl,
-          status: "delivered",
+          status: resolvedStatus,
           isPending: false,
         });
 
@@ -125,11 +151,18 @@ export async function queueAndSendMessage(
   sender: UserAccount,
   text: string,
   mediaType?: "image" | "audio" | "video" | "document",
-  mediaUrl?: string
+  mediaUrl?: string,
+  isRecipientOnline?: boolean
 ): Promise<string> {
   const localId = `local_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
   const now = Date.now();
   const timeFormatted = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+  let recipientOnline = isRecipientOnline;
+  if (recipientOnline === undefined) {
+    recipientOnline = await resolveRecipientOnline(chatId, sender.anonId);
+  }
+  const initialStatus: "sent" | "delivered" = recipientOnline ? "delivered" : "sent";
 
   const queuedItem: OutgoingQueuedMessage = {
     localId,
@@ -158,7 +191,7 @@ export async function queueAndSendMessage(
     createdAtTimestamp: now,
     mediaType: mediaType || null,
     mediaUrl: mediaUrl || null,
-    status: "sent",
+    status: initialStatus,
     isPending: true,
   });
 
@@ -182,7 +215,7 @@ export async function queueAndSendMessage(
       createdAt: serverTimestamp(),
       mediaType: mediaType || null,
       mediaUrl: mediaUrl || null,
-      status: "delivered",
+      status: initialStatus,
     },
     { merge: true }
   )
@@ -194,19 +227,20 @@ export async function queueAndSendMessage(
           lastMessage: text.trim() || `[${mediaType || "Media"}]`,
           lastMessageTimestamp: nowIso,
           lastSenderId: sender.anonId,
+          lastMessageStatus: initialStatus,
           updatedAt: nowIso,
         },
         { merge: true }
       ).catch(() => {});
 
-      // Successfully synced to Firestore: remove from queue & mark cached message as delivered
+      // Successfully synced to Firestore: remove from queue & mark cached message
       try {
         if (queueKey) {
           await offlineDb.outgoingQueue.delete(queueKey);
           notifyQueueChange();
         }
         await offlineDb.cachedMessages.update(localId, {
-          status: "delivered",
+          status: initialStatus,
           isPending: false,
         });
       } catch {}

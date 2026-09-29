@@ -162,9 +162,9 @@ export function NewGroup() {
                 <span>{currentUser.avatar}</span>
                 <span>You</span>
               </div>
-              {selectedContacts.map((anonId) => (
+              {selectedContacts.map((anonId, idx) => (
                 <div
-                  key={anonId}
+                  key={`${anonId}_${idx}`}
                   className="bg-[#202c33] text-[#e9edef] text-xs px-3 py-1 rounded-full flex items-center gap-1.5"
                 >
                   <span>👤</span>
@@ -210,9 +210,9 @@ export function NewGroup() {
       {/* Selected Contacts Pills Row */}
       {selectedContacts.length > 0 && (
         <div className="px-3 py-2 bg-[#111b21] border-b border-[#202c33] flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-          {selectedContacts.map((anonId) => (
+          {selectedContacts.map((anonId, idx) => (
             <span
-              key={anonId}
+              key={`${anonId}_${idx}`}
               className="bg-[#202c33] text-[#e9edef] rounded-full px-3 py-1 text-xs flex items-center gap-1.5 font-mono"
             >
               <span>{anonId}</span>
@@ -264,11 +264,11 @@ export function NewGroup() {
             No peers found. Use the box above to add any Anon ID!
           </div>
         ) : (
-          filteredUsers.map((u: any) => {
+          filteredUsers.map((u: any, idx: number) => {
             const isSelected = selectedContacts.includes(u.anonId);
             return (
               <div
-                key={u.anonId}
+                key={`${u.anonId || u.id || "peer"}_${idx}`}
                 onClick={() => toggleContact(u.anonId)}
                 className="flex items-center justify-between px-4 py-3 hover:bg-[#202c33]/40 transition-colors cursor-pointer"
               >

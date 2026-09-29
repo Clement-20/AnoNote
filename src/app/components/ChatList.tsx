@@ -27,6 +27,8 @@ import {
   subscribeToActiveUsers,
   subscribeToAllUserDrafts,
   getOrCreateDirectChat,
+  markMessagesAsDelivered,
+  subscribeToBroadcast,
   FirestoreChat,
 } from "../services/chatService";
 
@@ -65,14 +67,35 @@ export function ChatList() {
     return () => unsubDrafts();
   }, [currentUser.anonId]);
 
-  const [broadcast, setBroadcast] = useState(() => {
-    return localStorage.getItem("anonote_admin_broadcast") || "";
-  });
+  const [broadcast, setBroadcast] = useState("");
+
+  useEffect(() => {
+    const unsubBroadcast = subscribeToBroadcast((msg) => {
+      if (msg) {
+        const dismissed = sessionStorage.getItem(`anonote_dismissed_broadcast_${msg}`);
+        if (dismissed) {
+          setBroadcast("");
+        } else {
+          setBroadcast(msg);
+        }
+      } else {
+        setBroadcast("");
+      }
+    });
+    return () => unsubBroadcast();
+  }, []);
 
   useEffect(() => {
     const unsubscribe = subscribeToUserChats(currentUser.anonId, (chats) => {
       setFirestoreChats(chats);
       localStorage.setItem("anonote_chats_cache", JSON.stringify(chats));
+
+      // Mark unread chats as delivered on this recipient's active device
+      chats.forEach((c) => {
+        if (c.lastSenderId && c.lastSenderId !== currentUser.anonId && c.lastMessageStatus === "sent") {
+          markMessagesAsDelivered(c.id, []);
+        }
+      });
     });
     return () => unsubscribe();
   }, [currentUser.anonId]);
@@ -126,6 +149,8 @@ export function ChatList() {
     }
 
     const chatDraft = draftsMap[c.id];
+    const isLastMessageFromMe = c.lastSenderId === currentUser.anonId;
+    const lastStatus = isLastMessageFromMe ? (c.lastMessageStatus || "sent") : undefined;
 
     if (c.isGroup) {
       return {
@@ -138,14 +163,19 @@ export function ChatList() {
         isVerified: false,
         draft: chatDraft,
         isGroup: true,
+        status: lastStatus,
       };
     }
 
     const otherParticipant = c.participants?.find((p) => p !== currentUser.anonId);
+    const livePeer = otherParticipant && activeNetworkUsers.find(
+      (u) => u.anonId?.trim().toLowerCase() === otherParticipant.trim().toLowerCase()
+    );
+
     const peerData = otherParticipant && c.participantData?.[otherParticipant];
-    const peerName = peerData?.name || otherParticipant || "Anon Peer";
-    const peerAvatar = peerData?.avatar || "👤";
-    const isPeerVerified = !!peerData?.isVerified;
+    const peerName = livePeer?.name || peerData?.name || otherParticipant || "Anon Peer";
+    const peerAvatar = livePeer?.avatar || peerData?.avatar || "👤";
+    const isPeerVerified = livePeer?.isVerified !== undefined ? !!livePeer.isVerified : !!peerData?.isVerified;
 
     return {
       id: c.id,
@@ -157,8 +187,11 @@ export function ChatList() {
       isVerified: isPeerVerified,
       draft: chatDraft,
       isGroup: false,
+      status: lastStatus,
     };
   });
+
+  const totalUnreadChats = mappedChats.filter((c) => c.unread > 0).length;
 
   const filteredChats = mappedChats.filter((chat) => {
     const matchesSearch =
@@ -244,7 +277,13 @@ export function ChatList() {
             <Radio className="w-4 h-4 flex-shrink-0 animate-pulse" />
             <span className="truncate">{broadcast}</span>
           </div>
-          <button onClick={() => setBroadcast("")} className="text-[#8696a0] hover:text-[#e9edef] p-1">
+          <button
+            onClick={() => {
+              sessionStorage.setItem(`anonote_dismissed_broadcast_${broadcast}`, "true");
+              setBroadcast("");
+            }}
+            className="text-[#8696a0] hover:text-[#e9edef] p-1"
+          >
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -281,11 +320,16 @@ export function ChatList() {
         </button>
         <button
           onClick={() => setActiveFilter("unread")}
-          className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
+          className={`px-3 py-1 text-xs font-medium rounded-full transition-colors flex items-center gap-1.5 ${
             activeFilter === "unread" ? "bg-[#0c3a5e] text-[#38bdf8]" : "bg-[#202c33] text-[#8696a0] hover:text-[#e9edef]"
           }`}
         >
-          Unread
+          <span>Unread</span>
+          {totalUnreadChats > 0 && (
+            <span className="bg-[#0084ff] text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full min-w-[16px] text-center">
+              {totalUnreadChats}
+            </span>
+          )}
         </button>
         <button
           onClick={() => setActiveFilter("groups")}

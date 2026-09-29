@@ -37,5 +37,9 @@ service cloud.firestore {
     match /broadcasts/{broadcastId} {
       allow read, write: if true;
     }
+
+    match /system/{docId} {
+      allow read, write: if true;
+    }
   }
 }

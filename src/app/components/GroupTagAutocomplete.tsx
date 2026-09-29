@@ -88,7 +88,7 @@ export function GroupTagAutocomplete({
           const isSelected = idx === selectedIndex;
           return (
             <div
-              key={item.tag}
+              key={`${item.tag}_${idx}`}
               onClick={() => onSelectTag(item.tag)}
               className={`flex items-center justify-between px-3 py-2 rounded-xl cursor-pointer transition-all ${
                 isSelected

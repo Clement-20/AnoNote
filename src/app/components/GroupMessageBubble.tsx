@@ -204,14 +204,13 @@ export function GroupMessageBubble({
         >
           <span>{timestamp}</span>
           {isSent && (
-            <span
-              className={`font-bold text-xs tracking-tighter ${
-                status === 'read' ? 'text-sky-400' : 'text-gray-400'
-              }`}
-              title={status === 'read' ? 'Read' : 'Delivered'}
-            >
-              ✓✓
-            </span>
+            status === 'read' ? (
+              <span className="font-bold text-xs tracking-tighter text-[#53bdeb]" title="Read">✓✓</span>
+            ) : status === 'delivered' ? (
+              <span className="font-bold text-xs tracking-tighter text-[#8696a0]" title="Delivered (recipient online)">✓✓</span>
+            ) : (
+              <span className="font-bold text-xs tracking-tighter text-[#8696a0]" title="Sent (recipient offline)">✓</span>
+            )
           )}
         </div>
       </div>

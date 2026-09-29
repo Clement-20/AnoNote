@@ -113,7 +113,7 @@ function getOrCreateDefaultChat(userId: string, user: User) {
       chatId,
       senderId: aiBotUser.id,
       senderName: aiBotUser.name,
-      text: "👋 Welcome to AnonWhatsApp! All messages here are protected with military-grade End-to-End Encryption. Your anonymous ID is secure. How can I help you encrypt your conversation today?",
+      text: "👋 Welcome to AnoNote! All messages here are protected with military-grade End-to-End Encryption. Your anonymous ID is secure. How can I help you encrypt your conversation today?",
       timestamp: Date.now(),
       status: 'read',
       isEncrypted: true
@@ -332,5 +332,5 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 server.listen(PORT, "0.0.0.0", () => {
-  console.log(`AnonWhatsApp server running on http://localhost:${PORT}`);
+  console.log(`AnoNote server running on http://localhost:${PORT}`);
 });

@@ -1,4 +1,4 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import { Link, useLocation } from "react-router";
 import {
   MessageSquare,
@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { ConnectModal } from "./ConnectModal";
+import { subscribeToUserChats, FirestoreChat } from "../services/chatService";
+import { subscribeToStatuses } from "../services/statusService";
 
 interface ResponsiveLayoutProps {
   children: ReactNode;
@@ -21,9 +23,53 @@ export function ResponsiveLayout({ children, showBottomNav = true }: ResponsiveL
   const { currentUser } = useAuth();
   const [showConnectModal, setShowConnectModal] = useState(false);
 
+  // Real-time actual count of unread chats
+  const [unreadChatsCount, setUnreadChatsCount] = useState<number>(() => {
+    try {
+      const cached = localStorage.getItem("anonote_chats_cache");
+      if (cached && currentUser?.anonId) {
+        const chats: FirestoreChat[] = JSON.parse(cached);
+        return chats.filter((c) => (c.unreadCount?.[currentUser.anonId] || 0) > 0).length;
+      }
+    } catch {
+      // ignore
+    }
+    return 0;
+  });
+
+  const [hasUnviewedUpdates, setHasUnviewedUpdates] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!currentUser?.anonId) {
+      setUnreadChatsCount(0);
+      return;
+    }
+    const unsubscribe = subscribeToUserChats(currentUser.anonId, (chats) => {
+      const count = chats.filter((c) => (c.unreadCount?.[currentUser.anonId] || 0) > 0).length;
+      setUnreadChatsCount(count);
+    });
+    return () => unsubscribe();
+  }, [currentUser?.anonId]);
+
+  useEffect(() => {
+    if (!currentUser?.anonId) return;
+    const unsub = subscribeToStatuses(currentUser.anonId, (userGroups) => {
+      const unviewed = userGroups.some((g) => g.hasUnviewed);
+      setHasUnviewedUpdates(unviewed);
+    });
+    return () => unsub();
+  }, [currentUser?.anonId]);
+
+  const chatsBadge =
+    unreadChatsCount > 0
+      ? unreadChatsCount > 99
+        ? "99+"
+        : String(unreadChatsCount)
+      : undefined;
+
   const navItems = [
-    { path: "/", icon: MessageSquare, label: "Chats", badge: "99+" },
-    { path: "/status", icon: CircleDot, label: "Updates", dot: true },
+    { path: "/", icon: MessageSquare, label: "Chats", badge: chatsBadge },
+    { path: "/status", icon: CircleDot, label: "Updates", dot: hasUnviewedUpdates },
     { path: "/new-group", icon: Users, label: "Communities" },
     { path: "/calls", icon: Phone, label: "Calls" },
   ];
@@ -55,17 +101,25 @@ export function ResponsiveLayout({ children, showBottomNav = true }: ResponsiveL
           <div className="flex items-center gap-1 text-[#aebac1]">
             <Link
               to="/status"
-              className="p-2 hover:bg-[#202c33] rounded-full transition-colors text-[#aebac1] hover:text-[#e9edef]"
+              className="p-2 hover:bg-[#202c33] rounded-full transition-colors text-[#aebac1] hover:text-[#e9edef] relative"
               title="Updates"
             >
               <CircleDot className="w-5 h-5" />
+              {hasUnviewedUpdates && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#0084ff] rounded-full" />
+              )}
             </Link>
             <Link
               to="/new-chat"
-              className="p-2 hover:bg-[#202c33] rounded-full transition-colors text-[#aebac1] hover:text-[#e9edef]"
+              className="p-2 hover:bg-[#202c33] rounded-full transition-colors text-[#aebac1] hover:text-[#e9edef] relative"
               title="New Chat"
             >
               <MessageSquare className="w-5 h-5" />
+              {unreadChatsCount > 0 && (
+                <span className="absolute top-1 right-1 bg-[#0084ff] text-white font-bold text-[9px] px-1 py-0.2 rounded-full min-w-[14px] text-center">
+                  {chatsBadge}
+                </span>
+              )}
             </Link>
             <Link
               to="/settings"
@@ -123,12 +177,12 @@ export function ResponsiveLayout({ children, showBottomNav = true }: ResponsiveL
                       }`}
                     >
                       <Icon className="w-5 h-5" />
-                      {item.badge && active && (
+                      {item.badge && (
                         <span className="absolute -top-1 -right-1 bg-[#0084ff] text-white font-bold text-[9px] px-1 py-0.2 rounded-full min-w-[14px] text-center">
                           {item.badge}
                         </span>
                       )}
-                      {item.dot && !active && (
+                      {item.dot && (
                         <span className="absolute top-0 right-3 w-2 h-2 bg-[#0084ff] rounded-full" />
                       )}
                     </div>

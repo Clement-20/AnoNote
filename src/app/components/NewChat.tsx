@@ -191,9 +191,9 @@ export function NewChat() {
               No active peers discovered right now. Use the "New contact" option above or share your invite link.
             </div>
           ) : (
-            filteredUsers.map((u: any) => (
+            filteredUsers.map((u: any, idx: number) => (
               <div
-                key={u.anonId}
+                key={`${u.anonId || u.id || "peer"}_${idx}`}
                 onClick={() => handleStartChatWithAnon(u.anonId)}
                 className="flex items-center gap-3.5 px-4 py-3 hover:bg-[#202c33]/40 transition-colors cursor-pointer"
               >

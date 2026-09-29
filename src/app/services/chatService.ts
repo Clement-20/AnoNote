@@ -5,6 +5,7 @@ import {
   getDoc,
   updateDoc,
   deleteDoc,
+  writeBatch,
   query,
   where,
   orderBy,
@@ -53,6 +54,7 @@ export interface FirestoreChat {
   lastMessage: string;
   lastMessageTimestamp: string;
   lastSenderId: string;
+  lastMessageStatus?: "sent" | "delivered" | "read";
   unreadCount?: { [anonId: string]: number };
   createdAt: string;
   updatedAt: string;
@@ -405,7 +407,7 @@ export function subscribeToMessages(
           id: docSnap.id,
           ...data,
           isPending: docSnap.metadata.hasPendingWrites,
-          status: docSnap.metadata.hasPendingWrites ? "sent" : (data.status || "delivered"),
+          status: docSnap.metadata.hasPendingWrites ? "sent" : (data.status || "sent"),
         } as FirestoreMessage;
         serverMsgs.push(msg);
 
@@ -541,11 +543,12 @@ export async function sendChatMessage(
   sender: UserAccount,
   text: string,
   mediaType?: "image" | "audio" | "video" | "document",
-  mediaUrl?: string
+  mediaUrl?: string,
+  isRecipientOnline?: boolean
 ) {
   if (!text.trim() && !mediaUrl) return;
 
-  await queueAndSendMessage(chatId, sender, text, mediaType, mediaUrl);
+  await queueAndSendMessage(chatId, sender, text, mediaType, mediaUrl, isRecipientOnline);
   deleteChatDraft(sender.anonId, chatId);
 }
 
@@ -705,17 +708,237 @@ export function subscribeToActiveUsers(
     usersRef,
     { includeMetadataChanges: true },
     (snapshot) => {
-      const users: any[] = [];
+      const userMap = new Map<string, any>();
       snapshot.forEach((docSnap) => {
         const u = docSnap.data();
-        if (u.anonId && u.anonId !== currentUserAnonId) {
-          users.push(u);
+        const rawId = (u.anonId || docSnap.id || "").trim();
+        if (rawId && rawId !== currentUserAnonId) {
+          // If duplicate exists, prefer verified or with non-empty name
+          if (!userMap.has(rawId) || u.isVerified) {
+            userMap.set(rawId, { ...u, id: docSnap.id, anonId: rawId });
+          }
         }
       });
-      onUsersUpdate(users);
+      onUsersUpdate(Array.from(userMap.values()));
     },
     (err) => {
       console.error("Error loading active users:", err);
     }
   );
 }
+
+// Mark messages as read by recipient
+export async function markMessagesAsRead(chatId: string, messageIds: string[], readerAnonId: string) {
+  if (!chatId || !messageIds || messageIds.length === 0) return;
+  const nowIso = new Date().toISOString();
+
+  // Update in Dexie locally
+  try {
+    for (const id of messageIds) {
+      await offlineDb.cachedMessages.update(id, { status: "read" });
+    }
+  } catch {}
+
+  // Update in Firestore
+  try {
+    const batch = writeBatch(db);
+    for (const msgId of messageIds) {
+      const msgRef = doc(db, "chats", chatId, "messages", msgId);
+      batch.update(msgRef, {
+        status: "read",
+        readAt: nowIso,
+      });
+    }
+    const chatRef = doc(db, "chats", chatId);
+    batch.update(chatRef, {
+      [`unreadCount.${readerAnonId}`]: 0,
+      lastMessageStatus: "read",
+    });
+    await batch.commit();
+  } catch (err) {
+    try {
+      const chatRef = doc(db, "chats", chatId);
+      updateDoc(chatRef, {
+        [`unreadCount.${readerAnonId}`]: 0,
+        lastMessageStatus: "read",
+      }).catch(() => {});
+      for (const msgId of messageIds) {
+        const msgRef = doc(db, "chats", chatId, "messages", msgId);
+        updateDoc(msgRef, {
+          status: "read",
+          readAt: nowIso,
+        }).catch(() => {});
+      }
+    } catch {}
+  }
+}
+
+// Mark messages as delivered when recipient is online
+export async function markMessagesAsDelivered(chatId: string, messageIds: string[]) {
+  if (!chatId || !messageIds || messageIds.length === 0) return;
+  const nowIso = new Date().toISOString();
+
+  // Update in Dexie locally
+  try {
+    for (const id of messageIds) {
+      await offlineDb.cachedMessages.update(id, { status: "delivered" });
+    }
+  } catch {}
+
+  // Update in Firestore
+  try {
+    const batch = writeBatch(db);
+    for (const msgId of messageIds) {
+      const msgRef = doc(db, "chats", chatId, "messages", msgId);
+      batch.update(msgRef, {
+        status: "delivered",
+        deliveredAt: nowIso,
+      });
+    }
+    const chatRef = doc(db, "chats", chatId);
+    batch.update(chatRef, {
+      lastMessageStatus: "delivered",
+    });
+    await batch.commit();
+  } catch (err) {
+    try {
+      for (const msgId of messageIds) {
+        const msgRef = doc(db, "chats", chatId, "messages", msgId);
+        updateDoc(msgRef, {
+          status: "delivered",
+          deliveredAt: nowIso,
+        }).catch(() => {});
+      }
+    } catch {}
+  }
+}
+
+// Mark all messages in a chat as read for the current user
+export async function markChatAsRead(chatId: string, userAnonId: string) {
+  if (!chatId || !userAnonId) return;
+  try {
+    const chatRef = doc(db, "chats", chatId);
+    await updateDoc(chatRef, {
+      [`unreadCount.${userAnonId}`]: 0,
+      lastMessageStatus: "read",
+    });
+  } catch (err) {
+    // ignore offline or non-existent
+  }
+}
+
+export interface UserPresence {
+  isOnline: boolean;
+  lastSeen?: string;
+  lastActive?: string;
+  avatar?: string;
+  name?: string;
+  isVerified?: boolean;
+}
+
+// Update user's presence state in Firestore
+export async function updateUserPresence(anonId: string, isOnline: boolean) {
+  if (!anonId) return;
+  try {
+    const userKey = anonId.trim().toLowerCase().replace(/[^a-zA-Z0-9]/g, "_");
+    const userRef = doc(db, "users", userKey);
+    const nowIso = new Date().toISOString();
+    await setDoc(
+      userRef,
+      {
+        isOnline,
+        lastActive: nowIso,
+        lastSeen: nowIso,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  } catch (e) {
+    // Ignore network dropouts
+  }
+}
+
+// Subscribe to peer's live presence status
+export function subscribeToUserPresence(
+  anonId: string,
+  onUpdate: (presence: UserPresence | null) => void
+) {
+  if (!anonId) {
+    onUpdate(null);
+    return () => {};
+  }
+  const userKey = anonId.trim().toLowerCase().replace(/[^a-zA-Z0-9]/g, "_");
+  const userRef = doc(db, "users", userKey);
+
+  return onSnapshot(
+    userRef,
+    (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        let isOnline = !!data.isOnline;
+        if (data.lastActive) {
+          const lastActiveTime = new Date(data.lastActive).getTime();
+          // If no heartbeat for > 90 seconds, consider offline
+          if (Date.now() - lastActiveTime > 90 * 1000) {
+            isOnline = false;
+          }
+        }
+        onUpdate({
+          isOnline,
+          lastSeen: data.lastSeen || data.lastActive || undefined,
+          lastActive: data.lastActive || undefined,
+          avatar: data.avatar || undefined,
+          name: data.name || undefined,
+          isVerified: data.isVerified !== undefined ? !!data.isVerified : undefined,
+        });
+      } else {
+        onUpdate(null);
+      }
+    },
+    () => {
+      onUpdate(null);
+    }
+  );
+}
+
+// Publish dynamic system broadcast to all clients simultaneously
+export async function publishBroadcast(message: string, senderName: string = "Admin") {
+  try {
+    const ref = doc(db, "system", "broadcast");
+    await setDoc(ref, {
+      message: message.trim(),
+      senderName,
+      updatedAt: serverTimestamp(),
+      timestampStr: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    });
+  } catch (e) {
+    console.error("Failed to publish broadcast:", e);
+  }
+}
+
+// Clear system broadcast from Firestore
+export async function clearBroadcast() {
+  try {
+    const ref = doc(db, "system", "broadcast");
+    await setDoc(ref, {
+      message: "",
+      updatedAt: serverTimestamp(),
+    });
+  } catch (e) {
+    console.error("Failed to clear broadcast:", e);
+  }
+}
+
+// Subscribe to real-time system broadcasts
+export function subscribeToBroadcast(onUpdate: (message: string, timestampStr?: string) => void) {
+  const ref = doc(db, "system", "broadcast");
+  return onSnapshot(ref, (snap) => {
+    if (snap.exists()) {
+      const data = snap.data();
+      onUpdate(data.message || "", data.timestampStr || "");
+    } else {
+      onUpdate("", "");
+    }
+  });
+}
+

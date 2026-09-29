@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router";
 import {
   ArrowLeft,
@@ -17,6 +17,7 @@ import {
   Camera,
   AtSign,
   Lock,
+  ChevronDown,
 } from "lucide-react";
 import { MessageBubble } from "./MessageBubble";
 import { ChatMenu } from "./ChatMenu";
@@ -35,6 +36,10 @@ import {
   saveChatDraft,
   deleteChatDraft,
   subscribeToQueueCount,
+  subscribeToUserPresence,
+  markMessagesAsRead,
+  markMessagesAsDelivered,
+  UserPresence,
   FirestoreMessage,
 } from "../services/chatService";
 
@@ -44,7 +49,7 @@ export function ChatViewDesktop() {
   const { currentUser } = useAuth();
   const [message, setMessage] = useState("");
   const [showMenu, setShowMenu] = useState(false);
-  const [isOnline, setIsOnline] = useState(() => (typeof navigator !== "undefined" ? navigator.onLine : true));
+  const [isNetworkOnline, setIsNetworkOnline] = useState(() => (typeof navigator !== "undefined" ? navigator.onLine : true));
   const [queuedCount, setQueuedCount] = useState(0);
 
   useEffect(() => {
@@ -55,8 +60,8 @@ export function ChatViewDesktop() {
   }, []);
 
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
+    const handleOnline = () => setIsNetworkOnline(true);
+    const handleOffline = () => setIsNetworkOnline(false);
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
     return () => {
@@ -82,6 +87,12 @@ export function ChatViewDesktop() {
   const [replyingTo, setReplyingTo] = useState<{ id: string; text: string; senderName: string } | null>(null);
   const textInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const isInitialScrollDoneRef = useRef(false);
+  const isNearBottomRef = useRef(true);
+  const prevChatIdRef = useRef(currentChatId);
+  const prevMessagesCountRef = useRef(0);
+  const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
 
   const draftLoadedRef = useRef(false);
   const saveDraftTimerRef = useRef<any>(null);
@@ -183,11 +194,11 @@ export function ChatViewDesktop() {
       const peerClean = parts.find((p) => p !== myClean) || parts[0];
       const otherParticipant = liveChatDoc?.participants?.find((p: string) => p !== currentUser.anonId);
       const peerData = otherParticipant && liveChatDoc?.participantData?.[otherParticipant];
-      const displayName = peerData?.name || `Anon #${peerClean.replace(/[^0-9]/g, "") || peerClean}`;
+      const displayName = peerPresence?.name || peerData?.name || `Anon #${peerClean.replace(/[^0-9]/g, "") || peerClean}`;
       return {
         name: displayName,
-        avatar: peerData?.avatar || "👤",
-        isVerified: !!peerData?.isVerified,
+        avatar: peerPresence?.avatar || peerData?.avatar || "👤",
+        isVerified: peerPresence?.isVerified !== undefined ? !!peerPresence.isVerified : !!peerData?.isVerified,
         isGroup: false,
       };
     }
@@ -203,6 +214,105 @@ export function ChatViewDesktop() {
   const chatName = chatMeta.name;
   const chatAvatar = chatMeta.avatar;
   const isVerified = chatMeta.isVerified;
+
+  const peerAnonId = (() => {
+    if (chatMeta.isGroup) return null;
+    const otherInDoc = liveChatDoc?.participants?.find((p: string) => p !== currentUser.anonId);
+    if (otherInDoc) return otherInDoc;
+    if (currentChatId.startsWith("chat_")) {
+      const parts = currentChatId.replace("chat_", "").split("__");
+      const myClean = currentUser.anonId.toLowerCase().replace(/[^a-zA-Z0-9]/g, "_");
+      const peerClean = parts.find((p) => p !== myClean) || parts[0];
+      return `Anon #${peerClean.replace(/[^0-9]/g, "") || peerClean}`;
+    }
+    return null;
+  })();
+
+  const [peerPresence, setPeerPresence] = useState<UserPresence | null>(null);
+
+  useEffect(() => {
+    if (!peerAnonId) {
+      setPeerPresence(null);
+      return;
+    }
+    const unsub = subscribeToUserPresence(peerAnonId, (presence) => {
+      setPeerPresence(presence);
+    });
+    return () => unsub();
+  }, [peerAnonId]);
+
+  const peerStatus = (() => {
+    if (chatMeta.isGroup) {
+      return {
+        text: `${chatMeta.participantsCount} members`,
+        isOnline: false,
+      };
+    }
+
+    if (peerPresence?.isOnline) {
+      return {
+        text: "online",
+        isOnline: true,
+      };
+    }
+
+    if (peerPresence?.lastSeen) {
+      try {
+        const d = new Date(peerPresence.lastSeen);
+        if (!isNaN(d.getTime())) {
+          const now = new Date();
+          const isToday =
+            d.getDate() === now.getDate() &&
+            d.getMonth() === now.getMonth() &&
+            d.getFullYear() === now.getFullYear();
+
+          const yesterday = new Date(now);
+          yesterday.setDate(now.getDate() - 1);
+          const isYesterday =
+            d.getDate() === yesterday.getDate() &&
+            d.getMonth() === yesterday.getMonth() &&
+            d.getFullYear() === yesterday.getFullYear();
+
+          const timeStr = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+
+          if (isToday) {
+            return {
+              text: `last seen today at ${timeStr}`,
+              isOnline: false,
+            };
+          } else if (isYesterday) {
+            return {
+              text: `last seen yesterday at ${timeStr}`,
+              isOnline: false,
+            };
+          } else {
+            const dateStr = d.toLocaleDateString([], { month: "short", day: "numeric" });
+            return {
+              text: `last seen ${dateStr} at ${timeStr}`,
+              isOnline: false,
+            };
+          }
+        }
+      } catch {}
+    }
+
+    // Check if peer sent any message in chat history
+    const peerLastMessage = firestoreMessages
+      .filter((m) => m.senderAnonId !== currentUser.anonId)
+      .slice(-1)[0];
+
+    if (peerLastMessage?.timestamp) {
+      return {
+        text: `last seen at ${peerLastMessage.timestamp}`,
+        isOnline: false,
+      };
+    }
+
+    return {
+      text: "offline",
+      isOnline: false,
+    };
+  })();
 
   // Autocomplete participants list
   const participantsList: TagCandidate[] = [
@@ -287,9 +397,67 @@ export function ChatViewDesktop() {
     reactions: m.reactions || {},
   }));
 
+  // Reset initial scroll flag when navigating between different chats
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length]);
+    if (prevChatIdRef.current !== currentChatId) {
+      prevChatIdRef.current = currentChatId;
+      isInitialScrollDoneRef.current = false;
+      isNearBottomRef.current = true;
+      setShowScrollBottomBtn(false);
+      prevMessagesCountRef.current = 0;
+    }
+  }, [currentChatId]);
+
+  // Jump to latest messages immediately upon entering, and only scroll down on new messages if user is already at the bottom
+  useLayoutEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    if (!isInitialScrollDoneRef.current && messages.length > 0) {
+      // 1. Immediately anchor to the bottom showing latest chats without any downward scroll animation
+      container.scrollTop = container.scrollHeight;
+      requestAnimationFrame(() => {
+        if (container) {
+          container.scrollTop = container.scrollHeight;
+        }
+      });
+      isInitialScrollDoneRef.current = true;
+      prevMessagesCountRef.current = messages.length;
+      return;
+    }
+
+    // 2. When a new message is added while already inside the chat
+    if (messages.length > prevMessagesCountRef.current) {
+      const lastMsg = messages[messages.length - 1];
+      const isSentByMe = lastMsg?.isSent;
+
+      // Only auto-scroll down if user sent the message or was already reading at the bottom
+      // If user has scrolled up to read older messages, DO NOT interrupt them!
+      if (isSentByMe || isNearBottomRef.current) {
+        container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+      }
+    }
+    prevMessagesCountRef.current = messages.length;
+  }, [messages.length, currentChatId]);
+
+  // Detect whether user is reading older messages
+  const handleScroll = () => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const isAtBottom = distanceFromBottom < 100;
+    isNearBottomRef.current = isAtBottom;
+    setShowScrollBottomBtn(!isAtBottom);
+  };
+
+  const scrollToBottom = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({
+        top: scrollContainerRef.current.scrollHeight,
+        behavior: "smooth"
+      });
+    }
+  };
 
   const handleReact = async (msgId: string, emoji: string) => {
     await toggleMessageReaction(currentChatId, msgId, emoji, currentUser.anonId);
@@ -304,6 +472,62 @@ export function ChatViewDesktop() {
     textInputRef.current?.focus();
   };
 
+  // Read and Delivery Receipt tracking
+  const processedReadIdsRef = useRef<Set<string>>(new Set());
+  const processedDeliveredIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    processedReadIdsRef.current.clear();
+    processedDeliveredIdsRef.current.clear();
+  }, [currentChatId]);
+
+  useEffect(() => {
+    if (!firestoreMessages || firestoreMessages.length === 0) return;
+
+    // 1. Mark incoming unread messages as READ if chat is currently open and visible
+    const incomingUnread = firestoreMessages.filter(
+      (m) => m.senderAnonId !== currentUser.anonId && m.status !== "read" && !processedReadIdsRef.current.has(m.id)
+    );
+
+    if (incomingUnread.length > 0) {
+      const idsToMarkRead = incomingUnread.map((m) => m.id);
+      idsToMarkRead.forEach((id) => processedReadIdsRef.current.add(id));
+
+      if (typeof document === "undefined" || document.visibilityState === "visible") {
+        markMessagesAsRead(currentChatId, idsToMarkRead, currentUser.anonId);
+      } else {
+        markMessagesAsDelivered(currentChatId, idsToMarkRead);
+      }
+    }
+
+    // 2. Mark any incoming messages with status 'sent' as DELIVERED because recipient is online in this chat
+    const incomingSent = firestoreMessages.filter(
+      (m) => m.senderAnonId !== currentUser.anonId && m.status === "sent" && !processedDeliveredIdsRef.current.has(m.id)
+    );
+    if (incomingSent.length > 0) {
+      const idsToMarkDelivered = incomingSent.map((m) => m.id);
+      idsToMarkDelivered.forEach((id) => processedDeliveredIdsRef.current.add(id));
+      markMessagesAsDelivered(currentChatId, idsToMarkDelivered);
+    }
+  }, [firestoreMessages, currentChatId, currentUser.anonId]);
+
+  // When user returns to tab while viewing this chat, mark any unread messages as read
+  useEffect(() => {
+    const handleTabVisible = () => {
+      if (document.visibilityState === "visible" && firestoreMessages.length > 0) {
+        const unread = firestoreMessages.filter(
+          (m) => m.senderAnonId !== currentUser.anonId && m.status !== "read"
+        );
+        if (unread.length > 0) {
+          const ids = unread.map((m) => m.id);
+          markMessagesAsRead(currentChatId, ids, currentUser.anonId);
+        }
+      }
+    };
+    document.addEventListener("visibilitychange", handleTabVisible);
+    return () => document.removeEventListener("visibilitychange", handleTabVisible);
+  }, [firestoreMessages, currentChatId, currentUser.anonId]);
+
   const handleSend = async () => {
     if (!message.trim()) return;
     const textToSend = message.trim();
@@ -313,7 +537,8 @@ export function ChatViewDesktop() {
     deleteChatDraft(currentUser.anonId, currentChatId);
 
     try {
-      await sendChatMessage(currentChatId, currentUser, textToSend);
+      const isPeerOnline = chatMeta.isGroup ? false : !!peerPresence?.isOnline;
+      await sendChatMessage(currentChatId, currentUser, textToSend, undefined, undefined, isPeerOnline);
     } catch (e) {
       console.error("Failed to send message:", e);
     }
@@ -422,12 +647,17 @@ export function ChatViewDesktop() {
                 </h2>
                 {isVerified && <VerifiedBadge size="xs" userName={chatName} />}
               </div>
-              <p className="text-[12px] text-[#8696a0] truncate leading-tight">
-                {chatMeta.isGroup
-                  ? `${chatMeta.participantsCount} members`
-                  : isOnline
-                  ? "online"
-                  : "offline"}
+              <p
+                className={`text-[12px] truncate leading-tight transition-colors flex items-center gap-1.5 ${
+                  peerStatus.isOnline
+                    ? "text-[#00a8fc] font-medium"
+                    : "text-[#8696a0]"
+                }`}
+              >
+                {peerStatus.isOnline && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#00a8fc] inline-block animate-pulse" />
+                )}
+                <span>{peerStatus.text}</span>
               </p>
             </div>
           </Link>
@@ -468,7 +698,7 @@ export function ChatViewDesktop() {
       </header>
 
       {/* Offline Alert */}
-      {!isOnline && (
+      {!isNetworkOnline && (
         <div className="bg-[#182229] border-b border-[#202c33] px-4 py-1.5 flex items-center justify-between text-xs text-[#8696a0] z-10">
           <div className="flex items-center gap-2">
             <WifiOff className="w-3.5 h-3.5 text-[#f15c6d] flex-shrink-0" />
@@ -491,7 +721,11 @@ export function ChatViewDesktop() {
       )}
 
       {/* Messages Scroll Area */}
-      <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 space-y-1 bg-[#0b141a]">
+      <div
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 space-y-1 bg-[#0b141a] relative"
+      >
         {/* Centered Encryption Banner */}
         <div className="flex justify-center my-3">
           <div className="bg-[#112438] border border-[#1e3a5f] rounded-lg px-3 py-1.5 max-w-sm text-center text-[12px] text-[#93c5fd] flex items-center justify-center gap-1.5">
@@ -520,6 +754,17 @@ export function ChatViewDesktop() {
         ))}
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Floating Scroll to Bottom Button (WhatsApp style) */}
+      {showScrollBottomBtn && (
+        <button
+          onClick={scrollToBottom}
+          className="absolute bottom-20 right-6 z-30 w-10 h-10 rounded-full bg-[#202c33] hover:bg-[#2a3942] text-[#8696a0] hover:text-[#e9edef] shadow-2xl border border-[#2e3b44] flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 animate-in fade-in"
+          title="Scroll to latest messages"
+        >
+          <ChevronDown className="w-5 h-5 text-[#00a8fc]" />
+        </button>
+      )}
 
       {/* Reply Banner */}
       {replyingTo && (

@@ -87,9 +87,9 @@ export function Settings() {
           </Link>
         </div>
         <div className="space-y-1">
-          {savedAccounts.map((acc) => (
+          {savedAccounts.map((acc, idx) => (
             <button
-              key={acc.id}
+              key={`${acc.id || acc.anonId}_${idx}`}
               onClick={() => switchAccount(acc.id)}
               className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-colors ${
                 acc.id === currentUser.id

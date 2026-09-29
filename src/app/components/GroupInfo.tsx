@@ -18,6 +18,7 @@ import {
 import { GroupInviteModal } from "./GroupInviteModal";
 import { GroupMediaGallery } from "./GroupMediaGallery";
 import { VerifiedBadge } from "./VerifiedBadge";
+import { useAuth } from "../context/AuthContext";
 
 const groupDetails: Record<string, any> = {
   "g1": {
@@ -40,6 +41,7 @@ const groupDetails: Record<string, any> = {
 export function GroupInfo() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { currentUser } = useAuth();
   const groupId = id || "g1";
   const group = groupDetails[groupId] || groupDetails["g1"];
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -119,25 +121,31 @@ export function GroupInfo() {
           </div>
 
           <div className="divide-y divide-[#202c33]/40">
-            {group.members.map((member: any) => (
-              <div
-                key={member.id}
-                className="flex items-center gap-3 px-4 py-3 hover:bg-[#202c33]/40 transition-colors"
-              >
-                <div className="w-10 h-10 rounded-full bg-[#202c33] flex items-center justify-center text-xl flex-shrink-0">
-                  {member.avatar}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <h4 className="text-[15px] text-[#e9edef] font-normal truncate">{member.name}</h4>
-                    {["1", "2"].includes(member.id) && (
-                      <VerifiedBadge size="xs" userName={member.name} />
-                    )}
+            {group.members.map((member: any) => {
+              const isMe = member.id === "me";
+              const avatar = isMe ? currentUser.avatar : member.avatar;
+              const name = isMe ? `${currentUser.name} (You)` : member.name;
+
+              return (
+                <div
+                  key={member.id}
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-[#202c33]/40 transition-colors"
+                >
+                  <div className="w-10 h-10 rounded-full bg-[#202c33] flex items-center justify-center text-xl flex-shrink-0">
+                    {avatar}
                   </div>
-                  <p className="text-xs text-[#8696a0] capitalize">{member.role === "admin" ? "Group Admin" : "Member"}</p>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <h4 className="text-[15px] text-[#e9edef] font-normal truncate">{name}</h4>
+                      {["1", "2"].includes(member.id) && (
+                        <VerifiedBadge size="xs" userName={name} />
+                      )}
+                    </div>
+                    <p className="text-xs text-[#8696a0] capitalize">{member.role === "admin" ? "Group Admin" : "Member"}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 

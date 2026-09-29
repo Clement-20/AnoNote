@@ -175,13 +175,13 @@ export function MessageBubble({
               <span className="tabular-nums text-[10.5px]">{timestamp}</span>
               {isSent && (
                 isPending ? (
-                  <Clock className="w-3 h-3 text-[#93c5fd]/70 animate-pulse" />
+                  <Clock className="w-3 h-3 text-[#8696a0] animate-pulse" title="Sending..." />
                 ) : status === "read" ? (
-                  <CheckCheck className="w-3.5 h-3.5 text-[#38bdf8]" />
+                  <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" title="Read" />
                 ) : status === "delivered" ? (
-                  <CheckCheck className="w-3.5 h-3.5 text-[#93c5fd]/70" />
+                  <CheckCheck className="w-3.5 h-3.5 text-[#8696a0]" title="Delivered (recipient online)" />
                 ) : (
-                  <Check className="w-3.5 h-3.5 text-[#93c5fd]/70" />
+                  <Check className="w-3.5 h-3.5 text-[#8696a0]" title="Sent (recipient offline)" />
                 )
               )}
             </div>

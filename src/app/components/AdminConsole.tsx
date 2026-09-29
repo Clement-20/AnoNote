@@ -23,6 +23,7 @@ import {
   Check,
 } from "lucide-react";
 import { VerifiedBadge } from "./VerifiedBadge";
+import { publishBroadcast as firestorePublishBroadcast, clearBroadcast as firestoreClearBroadcast, subscribeToBroadcast } from "../services/chatService";
 
 interface AnonUserRecord {
   id: string;
@@ -185,12 +186,15 @@ export function AdminConsole() {
   });
 
   // Broadcast state
-  const [broadcastMessage, setBroadcastMessage] = useState(() => {
-    return localStorage.getItem("anonote_admin_broadcast") || "";
-  });
-  const [activeBroadcast, setActiveBroadcast] = useState(() => {
-    return localStorage.getItem("anonote_admin_broadcast") || "";
-  });
+  const [broadcastMessage, setBroadcastMessage] = useState("");
+  const [activeBroadcast, setActiveBroadcast] = useState("");
+
+  useEffect(() => {
+    const unsubscribe = subscribeToBroadcast((msg) => {
+      setActiveBroadcast(msg);
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Search & filter
   const [searchQuery, setSearchQuery] = useState("");
@@ -287,20 +291,16 @@ export function AdminConsole() {
   };
 
   // Broadcast publish
-  const handlePublishBroadcast = () => {
+  const handlePublishBroadcast = async () => {
     if (broadcastMessage.trim()) {
-      localStorage.setItem("anonote_admin_broadcast", broadcastMessage.trim());
-      setActiveBroadcast(broadcastMessage.trim());
-      window.dispatchEvent(new CustomEvent("system_broadcast_updated", { detail: { message: broadcastMessage.trim() } }));
+      await firestorePublishBroadcast(broadcastMessage.trim(), "Admin");
       showToast("Network announcement broadcasted!");
     }
   };
 
-  const handleClearBroadcast = () => {
-    localStorage.removeItem("anonote_admin_broadcast");
+  const handleClearBroadcast = async () => {
+    await firestoreClearBroadcast();
     setBroadcastMessage("");
-    setActiveBroadcast("");
-    window.dispatchEvent(new CustomEvent("system_broadcast_updated", { detail: { message: "" } }));
     showToast("Announcement cleared.");
   };
 
@@ -670,8 +670,8 @@ export function AdminConsole() {
                         </td>
                       </tr>
                     ) : (
-                      filteredUsers.map((user) => (
-                        <tr key={user.id} className="hover:bg-[#252528] transition-colors">
+                      filteredUsers.map((user, idx) => (
+                        <tr key={`${user.id}_${idx}`} className="hover:bg-[#252528] transition-colors">
                           <td className="p-3.5">
                             <div className="flex items-center gap-2.5">
                               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center text-sm">

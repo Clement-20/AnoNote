@@ -14,8 +14,13 @@ import {
   Send,
   Palette,
   Image as ImageIcon,
+  Radio,
+  Lock,
+  Shield,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { VerifiedBadge } from "./VerifiedBadge";
+import { subscribeToBroadcast } from "../services/chatService";
 import {
   subscribeToStatuses,
   publishStatus,
@@ -39,6 +44,29 @@ export function Status() {
   const { currentUser } = useAuth();
   const [otherStatusGroups, setOtherStatusGroups] = useState<UserStatusGroup[]>([]);
   const [myStatusGroup, setMyStatusGroup] = useState<UserStatusGroup | null>(null);
+
+  // Live Broadcast Channel state
+  const [broadcastMsg, setBroadcastMsg] = useState("Zero-knowledge encrypted network is operating normally across all nodes.");
+  const [broadcastTime, setBroadcastTime] = useState("Now");
+  const [showChannelView, setShowChannelView] = useState(false);
+  const [reactions, setReactions] = useState<Record<string, number>>({
+    "👍": 18,
+    "❤️": 34,
+    "🔥": 21,
+  });
+
+  useEffect(() => {
+    const unsub = subscribeToBroadcast((msg, timeStr) => {
+      if (msg) {
+        setBroadcastMsg(msg);
+        setBroadcastTime(timeStr || "Now");
+      } else {
+        setBroadcastMsg("Zero-knowledge encrypted network is operating normally across all nodes.");
+        setBroadcastTime("Now");
+      }
+    });
+    return () => unsub();
+  }, []);
 
   // Status creation modal state
   const [showTextModal, setShowTextModal] = useState(false);
@@ -220,9 +248,9 @@ export function Status() {
       {recentUpdates.length > 0 && (
         <div className="mt-2">
           <p className="px-4 py-1.5 text-[13px] font-medium text-[#8696a0]">Recent updates</p>
-          {recentUpdates.map((group) => (
+          {recentUpdates.map((group, idx) => (
             <div
-              key={group.anonId}
+              key={`${group.anonId}_${idx}`}
               onClick={() => handleOpenGroupStory(group)}
               className="flex items-center gap-3.5 px-4 py-2.5 hover:bg-[#202c33]/40 transition-colors cursor-pointer"
             >
@@ -246,9 +274,9 @@ export function Status() {
       {viewedUpdates.length > 0 && (
         <div className="mt-2">
           <p className="px-4 py-1.5 text-[13px] font-medium text-[#8696a0]">Viewed updates</p>
-          {viewedUpdates.map((group) => (
+          {viewedUpdates.map((group, idx) => (
             <div
-              key={group.anonId}
+              key={`${group.anonId}_${idx}`}
               onClick={() => handleOpenGroupStory(group)}
               className="flex items-center gap-3.5 px-4 py-2.5 hover:bg-[#202c33]/40 transition-colors cursor-pointer opacity-75"
             >
@@ -281,8 +309,11 @@ export function Status() {
         </div>
 
         <div className="divide-y divide-[#202c33]/30">
-          <div className="flex items-center gap-3.5 px-4 py-3 hover:bg-[#202c33]/40 transition-colors cursor-pointer">
-            <div className="w-12 h-12 rounded-full bg-[#202c33] flex items-center justify-center text-2xl flex-shrink-0">
+          <div
+            onClick={() => setShowChannelView(true)}
+            className="flex items-center gap-3.5 px-4 py-3 hover:bg-[#202c33]/40 transition-colors cursor-pointer"
+          >
+            <div className="w-12 h-12 rounded-full bg-[#0084ff]/10 border border-[#0084ff]/20 flex items-center justify-center text-2xl flex-shrink-0">
               🏛️
             </div>
             <div className="flex-1 min-w-0">
@@ -290,10 +321,10 @@ export function Status() {
                 <h3 className="font-semibold text-[14.5px] text-[#e9edef] truncate">
                   ANONOTE NETWORK BROADCAST
                 </h3>
-                <span className="text-[12px] text-[#38bdf8] font-medium tabular-nums ml-2">Now</span>
+                <span className="text-[12px] text-[#38bdf8] font-medium tabular-nums ml-2">{broadcastTime}</span>
               </div>
               <p className="text-[13px] text-[#8696a0] truncate">
-                Zero-knowledge encrypted network is operating normally across all nodes.
+                {broadcastMsg}
               </p>
             </div>
           </div>
@@ -476,6 +507,119 @@ export function Status() {
               </span>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Fullscreen Broadcast Channel View */}
+      {showChannelView && (
+        <div className="fixed inset-0 z-50 bg-[#0b141a] flex flex-col font-sans select-none animate-in slide-in-from-right duration-200">
+          {/* Header */}
+          <header className="bg-[#111b21] px-4 py-3 border-b border-[#202c33] flex items-center justify-between sticky top-0 z-20">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowChannelView(false)}
+                className="text-[#aebac1] hover:text-[#e9edef] p-1.5 rounded-full hover:bg-[#202c33] transition-colors"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+              <div className="w-10 h-10 rounded-full bg-[#0084ff]/10 border border-[#0084ff]/20 flex items-center justify-center text-xl flex-shrink-0">
+                🏛️
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <h2 className="text-[#e9edef] font-semibold text-[16px] leading-tight">ANONOTE NETWORK BROADCAST</h2>
+                  <VerifiedBadge size="xs" userName="Broadcast Admin" />
+                </div>
+                <p className="text-[12px] text-[#8696a0]">Official Channel • 1,489 followers</p>
+              </div>
+            </div>
+            <button className="text-xs bg-[#0084ff] text-white font-semibold px-4 py-1.5 rounded-full hover:bg-[#0070df] transition-colors">
+              Following
+            </button>
+          </header>
+
+          {/* Broadcast feed */}
+          <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 bg-[#0b141a] relative">
+            {/* Encryption notice */}
+            <div className="flex justify-center">
+              <div className="bg-[#182229] border border-[#202c33] text-center rounded-lg px-4 py-2.5 max-w-sm text-[12px] text-[#8696a0] shadow-sm">
+                🔒 This is an official verified channel. All posts are signed by the administrator and distributed to all network nodes with zero telemetry collection.
+              </div>
+            </div>
+
+            {/* Past update message bubble */}
+            <div className="max-w-xl mx-auto bg-[#1f2c34] rounded-2xl p-4 shadow-md border border-[#2a3942]/50 relative">
+              <p className="text-[14.5px] text-[#e9edef] whitespace-pre-wrap leading-relaxed">
+                🔐 Welcome to the official AnoNote Broadcast Channel. Keep notifications active to receive instant updates regarding security, cryptographic upgrades, on-chain features, and network status updates directly from the developers.
+              </p>
+              <div className="flex items-center justify-between mt-3 text-[11px] text-[#8696a0] border-t border-[#2a3942]/40 pt-2">
+                <span>System Post</span>
+                <span>Jan 1, 2026</span>
+              </div>
+            </div>
+
+            {/* Active Live Broadcast update bubble */}
+            {broadcastMsg && (
+              <div className="max-w-xl mx-auto bg-[#1f2c34] rounded-2xl p-4 shadow-lg border-2 border-[#0084ff]/30 relative animate-in fade-in zoom-in duration-300">
+                <div className="absolute -top-3.5 left-4 bg-[#0084ff] text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-md flex items-center gap-1">
+                  <Radio className="w-3 h-3 animate-pulse" /> Live Broadcast
+                </div>
+                <p className="text-[15px] text-[#e9edef] whitespace-pre-wrap leading-relaxed pt-2">
+                  {broadcastMsg}
+                </p>
+                
+                {/* Reactions */}
+                <div className="flex flex-wrap items-center gap-2 mt-4 pt-3 border-t border-[#2a3942]/40">
+                  {Object.entries(reactions).map(([emoji, count]) => (
+                    <button
+                      key={emoji}
+                      onClick={() => {
+                        setReactions(prev => ({
+                          ...prev,
+                          [emoji]: prev[emoji] + 1
+                        }));
+                      }}
+                      className="flex items-center gap-1.5 bg-[#182229] hover:bg-[#202c33] border border-[#2a3942] rounded-full px-3 py-1 text-xs text-[#e9edef] transition-colors"
+                    >
+                      <span>{emoji}</span>
+                      <span className="text-[#8696a0] font-medium">{count}</span>
+                    </button>
+                  ))}
+                  <div className="w-[1px] h-4 bg-[#2a3942] mx-1" />
+                  {["👍", "❤️", "🔥", "😂", "😮", "🙏"].map(emoji => (
+                    <button
+                      key={emoji}
+                      onClick={() => {
+                        setReactions(prev => ({
+                          ...prev,
+                          [emoji]: (prev[emoji] || 0) + 1
+                        }));
+                      }}
+                      className="hover:scale-125 transition-transform p-1 text-sm text-gray-400 hover:text-white"
+                      title={`React with ${emoji}`}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-between mt-3 text-[11px] text-[#8696a0]">
+                  <span className="text-[#0084ff] font-medium flex items-center gap-1">
+                    <Shield className="w-3.5 h-3.5" /> Cryptographically Verified
+                  </span>
+                  <span>{broadcastTime}</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Locked input style footer */}
+          <footer className="bg-[#111b21] border-t border-[#202c33] px-4 py-4 flex items-center justify-center z-10 shadow-lg">
+            <div className="bg-[#202c33] text-[#8696a0] rounded-full py-2.5 px-6 max-w-lg w-full flex items-center justify-center gap-2 border border-[#2a3942] text-xs">
+              <Lock className="w-4 h-4 text-[#8696a0]" />
+              <span>Only administrators can send messages to this channel</span>
+            </div>
+          </footer>
         </div>
       )}
     </div>

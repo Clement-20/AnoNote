@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { syncUserToFirestore, isAnonIdRegistered } from "../services/chatService";
+import { syncUserToFirestore, isAnonIdRegistered, updateUserPresence } from "../services/chatService";
 
 export interface UserAccount {
   id: string;
@@ -121,7 +121,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const saved = localStorage.getItem("anonote_saved_accounts");
       if (saved) {
         const list = JSON.parse(saved);
-        if (Array.isArray(list)) return list;
+        if (Array.isArray(list)) {
+          const map = new Map<string, UserAccount>();
+          list.forEach((acc) => {
+            const key = acc.id || acc.anonId;
+            if (key && !map.has(key)) {
+              map.set(key, acc);
+            }
+          });
+          return Array.from(map.values());
+        }
       }
     } catch (e) {
       console.error("Failed to load saved accounts", e);
@@ -137,6 +146,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     claimAnonId(currentUser.anonId);
     syncUserToFirestore(currentUser);
   }, [currentUser]);
+
+  // Presence heartbeat and visibility/disconnect listeners
+  useEffect(() => {
+    if (!currentUser?.anonId) return;
+
+    // Immediately mark current user online
+    updateUserPresence(currentUser.anonId, true);
+
+    const heartbeat = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible" && navigator.onLine) {
+        updateUserPresence(currentUser.anonId, true);
+      }
+    }, 35000);
+
+    const handleOnline = () => updateUserPresence(currentUser.anonId, true);
+    const handleOffline = () => updateUserPresence(currentUser.anonId, false);
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        updateUserPresence(currentUser.anonId, true);
+      } else {
+        updateUserPresence(currentUser.anonId, false);
+      }
+    };
+    const handleBeforeUnload = () => {
+      updateUserPresence(currentUser.anonId, false);
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      clearInterval(heartbeat);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [currentUser?.anonId]);
 
   useEffect(() => {
     localStorage.setItem("anonote_saved_accounts", JSON.stringify(savedAccounts));

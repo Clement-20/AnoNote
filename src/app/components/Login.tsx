@@ -84,9 +84,9 @@ export function Login() {
               Saved Identities on Device
             </h3>
             <div className="space-y-1.5 max-h-48 overflow-y-auto divide-y divide-[#202c33]/40">
-              {savedAccounts.slice(0, 3).map((account) => (
+              {savedAccounts.slice(0, 3).map((account, idx) => (
                 <button
-                  key={account.id}
+                  key={`${account.id || account.anonId}_${idx}`}
                   onClick={() => handleSelectSaved(account.id)}
                   className="w-full flex items-center justify-between p-2.5 rounded-md hover:bg-[#202c33] transition-colors text-left"
                 >
