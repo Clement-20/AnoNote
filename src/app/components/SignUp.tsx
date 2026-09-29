@@ -5,12 +5,10 @@ import {
   Eye,
   EyeOff,
   Lock,
-  Shield,
-  Sparkles,
   User,
   ArrowRight,
   RefreshCw,
-  Check,
+  Sparkles,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
@@ -24,7 +22,6 @@ export function SignUp() {
   const [avatar, setAvatar] = useState("🎭");
   const [anonId, setAnonId] = useState(() => generateUniqueId());
   const [error, setError] = useState<string | null>(null);
-
   const [isLoading, setIsLoading] = useState(false);
 
   const avatarOptions = ["🎭", "🕶️", "👤", "🌑", "💭", "🔮", "🎪", "🌙", "✨", "🛡️", "🚀", "⚡", "🔥", "💎", "🦁"];
@@ -40,7 +37,7 @@ export function SignUp() {
       await quickStart();
       navigate("/");
     } catch {
-      setError("Failed to generate quick identity.");
+      setError("Failed to generate instant identity.");
     } finally {
       setIsLoading(false);
     }
@@ -70,44 +67,45 @@ export function SignUp() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#0b141a] text-[#e9edef] flex items-center justify-center p-4 font-sans select-none">
       <div className="w-full max-w-md">
         {/* Logo and branding */}
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-purple-600 to-indigo-600 mb-4 shadow-lg shadow-purple-600/30">
-            <ShieldCheck className="w-10 h-10 text-white" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#111b21] border border-[#202c33] mb-3 text-[#38bdf8]">
+            <ShieldCheck className="w-8 h-8 text-[#38bdf8]" />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-1 tracking-tight">anoNote</h1>
-          <p className="text-xs text-purple-400 font-mono mb-2">anoNote.icepab.name.ng</p>
-          <p className="text-gray-400 text-sm">Create your anonymous identity with zero friction</p>
+          <h1 className="text-2xl font-bold text-[#e9edef] tracking-tight">AnoNote</h1>
+          <p className="text-xs text-[#8696a0] mt-1">Create your anonymous identity with zero metadata</p>
         </div>
 
-        {/* 1-CLICK INSTANT QUICK START HERO */}
-        <div className="bg-gradient-to-br from-purple-900/50 via-purple-800/30 to-indigo-950/60 border border-purple-500/50 rounded-2xl p-5 mb-5 shadow-2xl text-center space-y-3">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-yellow-400/10 text-yellow-400 text-xs font-semibold border border-yellow-400/20">
-            <Sparkles className="w-3.5 h-3.5" />
-            Fastest Method (0 Setup Required)
+        {/* 1-CLICK INSTANT QUICK START */}
+        <div className="bg-[#111b21] border border-[#202c33] rounded-lg p-4 mb-4 flex items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-[#38bdf8] uppercase tracking-wider">
+              <Sparkles className="w-3.5 h-3.5" />
+              1-Tap Guest Access
+            </div>
+            <p className="text-xs text-[#8696a0] mt-0.5">
+              Auto-generate identity and start immediately.
+            </p>
           </div>
-          <h3 className="text-lg font-bold text-white">Join in 1 Click as an Anonymous Guest</h3>
-          <p className="text-xs text-gray-300 leading-relaxed max-w-xs mx-auto">
-            No phone, no email, no password. An encrypted Anon ID is auto-generated for you instantly.
-          </p>
           <button
             onClick={handleInstantQuickStart}
-            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 rounded-xl transition-all shadow-lg shadow-purple-600/40 text-sm flex items-center justify-center gap-2"
+            disabled={isLoading}
+            className="px-3.5 py-1.5 bg-[#0284c7] hover:bg-[#0369a1] text-white text-xs font-medium rounded-md transition-colors whitespace-nowrap flex items-center gap-1.5"
           >
-            Instant 1-Click Start
-            <ArrowRight className="w-4 h-4" />
+            Quick Join
+            <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
 
         {/* CUSTOM IDENTITY FORM */}
-        <div className="bg-[#1c1c1e] rounded-2xl border border-gray-800 p-6 md:p-8 shadow-2xl">
-          <h2 className="text-xl font-semibold text-white mb-1">Customize Your Identity</h2>
-          <p className="text-xs text-gray-400 mb-5">Choose your avatar and custom Anon ID</p>
+        <div className="bg-[#111b21] rounded-lg border border-[#202c33] p-6">
+          <h2 className="text-base font-medium text-[#e9edef] mb-1">Customize Identity</h2>
+          <p className="text-xs text-[#8696a0] mb-4">Choose your avatar and custom Anon ID</p>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-500/15 border border-red-500/30 rounded-xl text-xs text-red-400 font-medium">
+            <div className="mb-4 p-3 bg-[#f15c6d]/15 border border-[#f15c6d]/30 rounded-md text-xs text-[#f15c6d]">
               {error}
             </div>
           )}
@@ -115,49 +113,46 @@ export function SignUp() {
           <form onSubmit={handleSignUp} className="space-y-4">
             {/* Generated / Custom Anon ID */}
             <div>
-              <label className="block text-xs font-medium text-gray-300 mb-1.5">
-                Your Anon ID
+              <label className="block text-xs font-medium text-[#8696a0] mb-1.5">
+                Anon ID
               </label>
-              <div className="bg-[#2c2c2e] rounded-xl px-4 py-2.5 flex items-center justify-between border border-purple-500/30">
+              <div className="bg-[#202c33] rounded-md px-3.5 py-2 flex items-center justify-between border border-[#2a3942]">
                 <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                  <User className="w-4 h-4 text-purple-400 flex-shrink-0" />
+                  <User className="w-4 h-4 text-[#38bdf8] flex-shrink-0" />
                   <input
                     type="text"
                     value={anonId}
                     onChange={(e) => setAnonId(e.target.value)}
-                    className="bg-transparent text-white font-semibold text-base font-mono outline-none w-full"
+                    className="bg-transparent text-[#e9edef] font-medium text-sm font-mono outline-none w-full"
                     placeholder="e.g. Anon #8462"
                   />
                 </div>
                 <button
                   type="button"
                   onClick={handleRegenerateId}
-                  className="text-gray-400 hover:text-purple-300 p-1 rounded-lg transition-colors ml-2 flex-shrink-0"
+                  className="text-[#8696a0] hover:text-[#e9edef] p-1 rounded transition-colors ml-2 flex-shrink-0"
                   title="Generate new ID"
                 >
                   <RefreshCw className="w-4 h-4" />
                 </button>
               </div>
-              <p className="text-[11px] text-gray-500 mt-1">
-                Your peers will find and message you using this Anon ID.
-              </p>
             </div>
 
             {/* Avatar selection */}
             <div>
-              <label className="block text-xs font-medium text-gray-300 mb-1.5">
-                Select Avatar Emoji
+              <label className="block text-xs font-medium text-[#8696a0] mb-1.5">
+                Avatar Emoji
               </label>
-              <div className="grid grid-cols-5 gap-2 max-h-36 overflow-y-auto p-1">
+              <div className="grid grid-cols-5 gap-2 max-h-32 overflow-y-auto p-1 bg-[#0b141a] rounded-md border border-[#202c33]">
                 {avatarOptions.map((emoji) => (
                   <button
                     key={emoji}
                     type="button"
                     onClick={() => setAvatar(emoji)}
-                    className={`aspect-square rounded-xl flex items-center justify-center text-xl transition-all ${
+                    className={`aspect-square rounded-md flex items-center justify-center text-xl transition-all ${
                       avatar === emoji
-                        ? "bg-purple-600 scale-105 shadow-md shadow-purple-600/30 border border-purple-400"
-                        : "bg-[#2c2c2e] hover:bg-[#3c3c3e] border border-gray-700/50"
+                        ? "bg-[#0284c7] text-white"
+                        : "bg-[#202c33] hover:bg-[#2a3942] text-[#e9edef]"
                     }`}
                   >
                     {emoji}
@@ -168,11 +163,9 @@ export function SignUp() {
 
             {/* Optional PIN */}
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-medium text-gray-300">
-                  Security PIN <span className="text-gray-500 font-normal">(optional)</span>
-                </label>
-              </div>
+              <label className="block text-xs font-medium text-[#8696a0] mb-1.5">
+                Security PIN <span className="text-[#8696a0]/70 font-normal">(optional)</span>
+              </label>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -181,14 +174,14 @@ export function SignUp() {
                     setPin(e.target.value);
                     setError(null);
                   }}
-                  placeholder="Set an optional 4 to 6-digit PIN"
-                  className="w-full bg-[#2c2c2e] text-white placeholder-gray-500 rounded-xl px-4 py-2.5 pl-10 pr-10 outline-none focus:ring-2 focus:ring-purple-600 transition-all text-sm border border-gray-700"
+                  placeholder="Set an optional PIN"
+                  className="w-full bg-[#202c33] text-[#e9edef] placeholder-[#8696a0] rounded-md px-3.5 py-2.5 pl-9 pr-9 outline-none focus:border-[#0284c7] transition-colors text-sm border border-[#2a3942]"
                 />
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8696a0]" />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8696a0] hover:text-[#e9edef]"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -197,7 +190,7 @@ export function SignUp() {
 
             {pin && (
               <div>
-                <label className="block text-xs font-medium text-gray-300 mb-1.5">
+                <label className="block text-xs font-medium text-[#8696a0] mb-1.5">
                   Confirm Security PIN
                 </label>
                 <div className="relative">
@@ -208,10 +201,10 @@ export function SignUp() {
                       setConfirmPin(e.target.value);
                       setError(null);
                     }}
-                    placeholder="Re-enter your PIN"
-                    className="w-full bg-[#2c2c2e] text-white placeholder-gray-500 rounded-xl px-4 py-2.5 pl-10 outline-none focus:ring-2 focus:ring-purple-600 transition-all text-sm border border-gray-700"
+                    placeholder="Re-enter PIN"
+                    className="w-full bg-[#202c33] text-[#e9edef] placeholder-[#8696a0] rounded-md px-3.5 py-2.5 pl-9 outline-none focus:border-[#0284c7] transition-colors text-sm border border-[#2a3942]"
                   />
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8696a0]" />
                 </div>
               </div>
             )}
@@ -220,19 +213,19 @@ export function SignUp() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl transition-colors shadow-lg shadow-purple-600/30 text-sm mt-3"
+              className="w-full bg-[#0284c7] hover:bg-[#0369a1] disabled:opacity-50 text-white font-medium py-2.5 rounded-md transition-colors text-sm mt-3"
             >
-              {isLoading ? "Validating & Creating Identity..." : "Create Identity & Enter"}
+              {isLoading ? "Creating Identity..." : "Create Identity"}
             </button>
           </form>
 
           {/* Divider */}
           <div className="relative my-5">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-800"></div>
+              <div className="w-full border-t border-[#202c33]"></div>
             </div>
             <div className="relative flex justify-center text-xs">
-              <span className="px-2 bg-[#1c1c1e] text-gray-500">
+              <span className="px-2 bg-[#111b21] text-[#8696a0]">
                 Already have an identity?
               </span>
             </div>
@@ -240,8 +233,8 @@ export function SignUp() {
 
           {/* Sign in link */}
           <Link to="/login">
-            <button className="w-full border border-gray-700 text-gray-300 hover:text-white hover:bg-gray-800/50 font-medium py-2.5 rounded-xl transition-colors text-xs">
-              Sign In to Existing Account
+            <button className="w-full border border-[#2a3942] text-[#8696a0] hover:text-[#e9edef] hover:bg-[#202c33] font-medium py-2 rounded-md transition-colors text-xs">
+              Sign In with Existing Anon ID
             </button>
           </Link>
         </div>

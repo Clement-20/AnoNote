@@ -21,9 +21,9 @@ import { VerifiedBadge } from "./VerifiedBadge";
 
 const groupDetails: Record<string, any> = {
   "g1": {
-    name: "Anonymous Friends 👥",
+    name: "Anonymous Friends",
     avatar: "👥",
-    description: "A secure circle for anonymous discussions on anoNote",
+    description: "A secure circle for anonymous discussions on AnoNote",
     createdBy: "Anon #8462",
     createdOn: "January 20, 2026",
     members: [
@@ -32,7 +32,7 @@ const groupDetails: Record<string, any> = {
       { id: "3", name: "Anon #5612", avatar: "🎭", role: "member" },
       { id: "4", name: "Anon #9204", avatar: "👤", role: "member" },
       { id: "5", name: "Anon #4156", avatar: "🌑", role: "member" },
-      { id: "me", name: "You (Anon #8462)", avatar: "🎭", role: "admin" },
+      { id: "me", name: "You", avatar: "🎭", role: "admin" },
     ],
   },
 };
@@ -46,174 +46,126 @@ export function GroupInfo() {
   const [showMediaGallery, setShowMediaGallery] = useState(false);
 
   return (
-    <div className="flex flex-col h-screen bg-[#0a0a0a]">
+    <div className="flex flex-col h-screen bg-[#0b141a] text-[#e9edef] font-sans select-none overflow-y-auto pb-12">
       {/* Header */}
-      <header className="bg-[#1c1c1e] px-4 py-3 flex items-center gap-3 border-b border-gray-800">
+      <header className="bg-[#111b21] px-4 py-3 flex items-center gap-3 border-b border-[#202c33] sticky top-0 z-20">
         <button
           onClick={() => navigate(`/group/${groupId}`)}
-          className="text-purple-400 hover:text-purple-300 transition-colors"
+          className="text-[#aebac1] hover:text-[#e9edef] p-1 -ml-1 rounded-full hover:bg-[#202c33] transition-colors"
         >
-          <ArrowLeft className="w-6 h-6" />
+          <ArrowLeft className="w-5 h-5" />
         </button>
-        <h2 className="text-white font-medium text-lg">Group Info</h2>
+        <h2 className="text-[#e9edef] font-medium text-[16px]">Group info</h2>
       </header>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto">
-        {/* Profile section */}
-        <div className="bg-[#1c1c1e] flex flex-col items-center py-8 border-b border-gray-800">
-          <div className="relative mb-4">
-            <div className="w-32 h-32 rounded-full bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center text-6xl">
+      <div className="flex-1">
+        {/* Profile Card */}
+        <div className="bg-[#111b21] flex flex-col items-center py-6 border-b border-[#202c33]">
+          <div className="relative mb-3">
+            <div className="w-28 h-28 rounded-full bg-[#202c33] flex items-center justify-center text-5xl border-2 border-[#202c33]">
               {group.avatar}
             </div>
-            <button className="absolute bottom-0 right-0 bg-purple-600 hover:bg-purple-700 text-white rounded-full p-2 transition-colors">
-              <Edit2 className="w-4 h-4" />
+            <button className="absolute bottom-0 right-0 bg-[#0284c7] hover:bg-[#0369a1] text-white rounded-full p-2 transition-colors shadow">
+              <Edit2 className="w-3.5 h-3.5" />
             </button>
           </div>
-          <h2 className="text-white text-2xl font-medium mb-2">{group.name}</h2>
-          <p className="text-gray-400 text-sm">{group.description}</p>
-          <p className="text-gray-500 text-xs mt-2">
-            Created by {group.createdBy} • {group.createdOn}
+          <h2 className="text-xl font-semibold text-[#e9edef] mb-1">{group.name}</h2>
+          <p className="text-xs text-[#8696a0]">{group.description}</p>
+          <p className="text-[11px] text-[#8696a0] mt-1.5">
+            Group • {group.members.length} participants
           </p>
         </div>
 
-        {/* Media Gallery Section */}
-        <div className="mt-4 bg-[#1c1c1e] border-b border-gray-800">
+        {/* Media Row */}
+        <div
+          onClick={() => setShowMediaGallery(true)}
+          className="mt-2 bg-[#111b21] border-b border-[#202c33] px-4 py-3.5 flex items-center justify-between hover:bg-[#202c33]/40 cursor-pointer transition-colors"
+        >
+          <div className="flex items-center gap-3.5">
+            <ImageIcon className="w-5 h-5 text-[#8696a0]" />
+            <span className="text-[15px] font-medium text-[#e9edef]">Media, links, and docs</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-[#8696a0]">
+            <span>6 items</span>
+            <ChevronRight className="w-4 h-4" />
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="bg-[#111b21] border-b border-[#202c33] mt-2 divide-y divide-[#202c33]/40">
           <div
-            onClick={() => setShowMediaGallery(true)}
-            className="px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-[#2c2c2e] transition-colors"
+            onClick={() => setShowInviteModal(true)}
+            className="flex items-center gap-3.5 px-4 py-3.5 hover:bg-[#202c33]/40 cursor-pointer text-[#38bdf8]"
           >
-            <div className="flex items-center gap-2">
-              <ImageIcon className="w-5 h-5 text-purple-400" />
-              <h3 className="text-white font-medium text-sm">Media, links and docs</h3>
-            </div>
-            <div className="flex items-center gap-1.5 text-gray-400 text-sm">
-              <span>6 photos</span>
-              <ChevronRight className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="flex gap-2 px-4 pb-4">
-            <div
-              onClick={() => setShowMediaGallery(true)}
-              className="flex-1 aspect-square bg-[#2c2c2e] rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity border border-gray-800"
-            >
-              <img
-                src="https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=300&auto=format&fit=crop&q=80"
-                alt="Shared group media 1"
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div
-              onClick={() => setShowMediaGallery(true)}
-              className="flex-1 aspect-square bg-[#2c2c2e] rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity border border-gray-800"
-            >
-              <img
-                src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=300&auto=format&fit=crop&q=80"
-                alt="Shared group media 2"
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div
-              onClick={() => setShowMediaGallery(true)}
-              className="flex-1 aspect-square bg-[#2c2c2e] rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity border border-gray-800 relative group"
-            >
-              <img
-                src="https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=300&auto=format&fit=crop&q=80"
-                alt="Shared group media 3"
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white font-medium text-xs">
-                +3 more
-              </div>
-            </div>
+            <Link2 className="w-5 h-5" />
+            <span className="text-[15px] font-medium">Invite to group via link</span>
           </div>
         </div>
 
-        {/* Quick actions */}
-        <div className="bg-[#1c1c1e] border-b border-gray-800 mt-4">
-          <InfoOption icon={Bell} title="Mute notifications" />
-          <InfoOption icon={Search} title="Search in conversation" />
-          <div onClick={() => setShowInviteModal(true)}>
-            <InfoOption icon={Link2} title="Invite to group via link" subtitle="Share secure join link" />
-          </div>
-        </div>
-
-        {/* Members section */}
-        <div className="bg-[#1c1c1e] border-b border-gray-800 mt-4">
-          <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
-            <h3 className="text-white font-medium">
-              {group.members.length} participants
+        {/* Participants Section */}
+        <div className="bg-[#111b21] border-b border-[#202c33] mt-2">
+          <div className="px-4 py-3 border-b border-[#202c33]/40 flex items-center justify-between">
+            <h3 className="text-xs font-semibold text-[#38bdf8] uppercase tracking-wider">
+              {group.members.length} Participants
             </h3>
             <button
               onClick={() => setShowInviteModal(true)}
-              className="text-purple-400 hover:text-purple-300 transition-colors"
-              title="Add participant via link"
+              className="text-[#38bdf8] hover:text-[#0084ff] p-1 rounded-full hover:bg-[#202c33] transition-colors"
+              title="Add participant"
             >
               <UserPlus className="w-5 h-5" />
             </button>
           </div>
-          {group.members.map((member: any) => (
-            <div
-              key={member.id}
-              className="flex items-center gap-3 px-4 py-3 border-b border-gray-800 last:border-b-0"
-            >
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center text-2xl flex-shrink-0">
-                {member.avatar}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <h3 className="text-white font-medium truncate">{member.name}</h3>
-                  {(["1", "2"].includes(member.id) || (member.id === "me" && localStorage.getItem("anon_is_verified") === "true")) && (
-                    <VerifiedBadge size="xs" userName={member.name} />
-                  )}
+
+          <div className="divide-y divide-[#202c33]/40">
+            {group.members.map((member: any) => (
+              <div
+                key={member.id}
+                className="flex items-center gap-3 px-4 py-3 hover:bg-[#202c33]/40 transition-colors"
+              >
+                <div className="w-10 h-10 rounded-full bg-[#202c33] flex items-center justify-center text-xl flex-shrink-0">
+                  {member.avatar}
                 </div>
-                <p className="text-sm text-gray-400 capitalize">{member.role}</p>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <h4 className="text-[15px] text-[#e9edef] font-normal truncate">{member.name}</h4>
+                    {["1", "2"].includes(member.id) && (
+                      <VerifiedBadge size="xs" userName={member.name} />
+                    )}
+                  </div>
+                  <p className="text-xs text-[#8696a0] capitalize">{member.role === "admin" ? "Group Admin" : "Member"}</p>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Encryption info */}
-        <div className="bg-[#1c1c1e] px-4 py-4 border-b border-gray-800 mt-4">
-          <div className="flex items-start gap-3">
-            <Lock className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
-            <div className="flex-1">
-              <p className="text-sm text-gray-400 leading-relaxed">
-                Messages are end-to-end encrypted. All members remain anonymous on anoNote.
-                No one outside of this group can read or listen to them.
-              </p>
-            </div>
+            ))}
           </div>
         </div>
 
-        {/* Safety section */}
-        <div className="bg-[#1c1c1e] border-b border-gray-800 mt-4">
-          <div className="px-4 py-2 bg-[#2c2c2e]">
-            <p className="text-xs text-gray-500 uppercase tracking-wide flex items-center gap-2">
-              <Shield className="w-3 h-3" />
-              Safety Options
-            </p>
-          </div>
-          <InfoOption
-            icon={ThumbsDown}
-            title="Report group"
-            subtitle="Report inappropriate content"
-            textColor="text-red-400"
-          />
+        {/* Encryption notice */}
+        <div className="bg-[#111b21] px-4 py-4 border-b border-[#202c33] mt-2 flex items-start gap-3.5">
+          <Lock className="w-5 h-5 text-[#8696a0] mt-0.5 flex-shrink-0" />
+          <p className="text-xs text-[#8696a0] leading-relaxed">
+            Messages and calls in this group are end-to-end encrypted. No one outside of this group can read or listen to them.
+          </p>
         </div>
 
         {/* Danger zone */}
-        <div className="bg-[#1c1c1e] border-b border-gray-800 mt-4">
-          <InfoOption icon={LogOut} title="Exit group" textColor="text-red-400" />
-          <InfoOption
-            icon={Trash2}
-            title="Delete group"
-            subtitle="Only admins can delete"
-            textColor="text-red-400"
-          />
+        <div className="bg-[#111b21] border-b border-[#202c33] mt-2 divide-y divide-[#202c33]/40 text-[#f15c6d]">
+          <div
+            onClick={() => navigate("/")}
+            className="flex items-center gap-3.5 px-4 py-3.5 hover:bg-[#202c33]/40 cursor-pointer"
+          >
+            <LogOut className="w-5 h-5" />
+            <span className="text-[15px] font-medium">Exit group</span>
+          </div>
+          <div
+            onClick={() => navigate("/")}
+            className="flex items-center gap-3.5 px-4 py-3.5 hover:bg-[#202c33]/40 cursor-pointer"
+          >
+            <Trash2 className="w-5 h-5" />
+            <span className="text-[15px] font-medium">Delete group</span>
+          </div>
         </div>
-
-        <div className="h-8" />
       </div>
 
       {showInviteModal && (
@@ -231,30 +183,6 @@ export function GroupInfo() {
           onClose={() => setShowMediaGallery(false)}
         />
       )}
-    </div>
-  );
-}
-
-interface InfoOptionProps {
-  icon: any;
-  title: string;
-  subtitle?: string;
-  textColor?: string;
-}
-
-function InfoOption({
-  icon: Icon,
-  title,
-  subtitle,
-  textColor = "text-white",
-}: InfoOptionProps) {
-  return (
-    <div className="flex items-center gap-3 px-4 py-3 hover:bg-[#2c2c2e] border-b border-gray-800 last:border-b-0 transition-colors cursor-pointer">
-      <Icon className={`w-5 h-5 ${textColor} flex-shrink-0`} />
-      <div className="flex-1">
-        <h3 className={`font-medium ${textColor}`}>{title}</h3>
-        {subtitle && <p className="text-sm text-gray-400">{subtitle}</p>}
-      </div>
     </div>
   );
 }

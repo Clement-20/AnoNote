@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Search, Shield, UserPlus, Bot, Users } from 'lucide-react';
+import { X, Search, Shield, UserPlus, Users } from 'lucide-react';
 import { User } from '../types';
 
 interface NewChatModalProps {
@@ -68,11 +68,11 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({
         {/* Header */}
         <div className="p-4 bg-[#202c33] flex items-center justify-between border-b border-[#222d34]">
           <h2 className="text-lg font-semibold flex items-center gap-2">
-            <UserPlus className="w-5 h-5 text-[#00a884]" />
+            <UserPlus className="w-5 h-5 text-[#00a8fc]" />
             New Secure Conversation
           </h2>
           <button 
-            onClick={onClose}
+            onClick={onClose} 
             className="p-2 hover:bg-[#374248] rounded-full text-[#8696a0] hover:text-white transition-colors"
           >
             <X className="w-5 h-5" />
@@ -83,14 +83,14 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({
         <div className="flex border-b border-[#222d34] bg-[#111b21]">
           <button
             onClick={() => setTab('direct')}
-            className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-2 ${tab === 'direct' ? 'border-[#00a884] text-[#00a884]' : 'border-transparent text-[#8696a0] hover:text-white'}`}
+            className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-2 ${tab === 'direct' ? 'border-[#00a8fc] text-[#00a8fc]' : 'border-transparent text-[#8696a0] hover:text-white'}`}
           >
             <Shield className="w-4 h-4" />
             Direct Anonymous Chat
           </button>
           <button
             onClick={() => setTab('group')}
-            className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-2 ${tab === 'group' ? 'border-[#00a884] text-[#00a884]' : 'border-transparent text-[#8696a0] hover:text-white'}`}
+            className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-2 ${tab === 'group' ? 'border-[#00a8fc] text-[#00a8fc]' : 'border-transparent text-[#8696a0] hover:text-white'}`}
           >
             <Users className="w-4 h-4" />
             Create Secure Group
@@ -111,11 +111,11 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({
                     value={anonIdInput}
                     onChange={(e) => setAnonIdInput(e.target.value)}
                     placeholder="e.g. Anon-4821-X9"
-                    className="flex-1 px-4 py-3 bg-[#2a3942] border border-transparent rounded-xl text-white placeholder-[#8696a0] focus:outline-none focus:border-[#00a884] text-sm font-mono"
+                    className="flex-1 px-4 py-3 bg-[#2a3942] border border-transparent rounded-xl text-white placeholder-[#8696a0] focus:outline-none focus:border-[#00a8fc] text-sm font-mono"
                   />
                   <button
                     type="submit"
-                    className="px-5 py-3 bg-[#00a884] hover:bg-[#008f72] text-[#111b21] font-bold rounded-xl transition-colors text-sm"
+                    className="px-5 py-3 bg-[#00a8fc] hover:bg-[#0284c7] text-[#0b141a] font-bold rounded-xl transition-colors text-sm"
                   >
                     Connect
                   </button>
@@ -157,14 +157,14 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({
                         <div className="relative">
                           <img src={u.avatar} alt={u.name} className="w-12 h-12 rounded-full object-cover" />
                           {u.online && (
-                            <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-[#00a884] border-2 border-[#111b21] rounded-full" />
+                            <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-[#00a8fc] border-2 border-[#111b21] rounded-full" />
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <h4 className="text-sm font-semibold text-white truncate flex items-center gap-1.5">
                             {u.name}
                             {u.id.includes('ai') && (
-                              <span className="bg-[#00a884]/20 text-[#00a884] text-[10px] px-1.5 py-0.5 rounded font-mono">AI</span>
+                              <span className="bg-[#00a8fc]/20 text-[#00a8fc] text-[10px] px-1.5 py-0.5 rounded font-mono">AI</span>
                             )}
                           </h4>
                           <p className="text-xs text-[#8696a0] font-mono">{u.anonId}</p>
@@ -187,7 +187,7 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({
                   value={groupName}
                   onChange={(e) => setGroupName(e.target.value)}
                   placeholder="e.g. Anonymous Syndicate 🛡️"
-                  className="w-full px-4 py-3 bg-[#2a3942] border border-transparent rounded-xl text-white placeholder-[#8696a0] focus:outline-none focus:border-[#00a884] text-sm"
+                  className="w-full px-4 py-3 bg-[#2a3942] border border-transparent rounded-xl text-white placeholder-[#8696a0] focus:outline-none focus:border-[#00a8fc] text-sm"
                   maxLength={40}
                 />
               </div>
@@ -203,14 +203,14 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({
                       <div
                         key={u.id}
                         onClick={() => handleToggleGroupUser(u.id)}
-                        className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors border ${isSelected ? 'bg-[#00a884]/15 border-[#00a884]/40' : 'bg-[#2a3942]/40 border-transparent hover:bg-[#2a3942]'}`}
+                        className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors border ${isSelected ? 'bg-[#00a8fc]/15 border-[#00a8fc]/40' : 'bg-[#2a3942]/40 border-transparent hover:bg-[#2a3942]'}`}
                       >
                         <img src={u.avatar} alt={u.name} className="w-10 h-10 rounded-full object-cover" />
                         <div className="flex-1 min-w-0">
                           <h4 className="text-sm font-semibold text-white truncate">{u.name}</h4>
                           <p className="text-xs text-[#8696a0] font-mono">{u.anonId}</p>
                         </div>
-                        <div className={`w-5 h-5 rounded-md flex items-center justify-center border ${isSelected ? 'bg-[#00a884] border-[#00a884] text-[#111b21]' : 'border-[#8696a0]'}`}>
+                        <div className={`w-5 h-5 rounded-md flex items-center justify-center border ${isSelected ? 'bg-[#00a8fc] border-[#00a8fc] text-[#0b141a]' : 'border-[#8696a0]'}`}>
                           {isSelected && <span className="text-xs font-bold">✓</span>}
                         </div>
                       </div>
@@ -221,7 +221,7 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({
 
               <button
                 type="submit"
-                className="w-full py-3.5 px-4 bg-[#00a884] hover:bg-[#008f72] text-[#111b21] font-bold rounded-xl transition-colors text-sm shadow-lg mt-4"
+                className="w-full py-3.5 px-4 bg-[#00a8fc] hover:bg-[#0284c7] text-[#0b141a] font-bold rounded-xl transition-colors text-sm shadow-lg mt-4"
               >
                 Create Encrypted Group
               </button>

@@ -9,7 +9,7 @@ interface GroupInviteModalProps {
 
 export function GroupInviteModal({ groupName, groupId, onClose }: GroupInviteModalProps) {
   const [copied, setCopied] = useState(false);
-  const [inviteCode, setInviteCode] = useState(`https://anoNote.icepab.name.ng/join/${groupId}_${Math.random().toString(36).substring(2, 8)}`);
+  const [inviteCode, setInviteCode] = useState(() => `${window.location.origin}/group/${groupId}`);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(inviteCode);
@@ -18,62 +18,62 @@ export function GroupInviteModal({ groupName, groupId, onClose }: GroupInviteMod
   };
 
   const handleResetLink = () => {
-    setInviteCode(`https://anoNote.icepab.name.ng/join/${groupId}_${Math.random().toString(36).substring(2, 8)}`);
+    setInviteCode(`${window.location.origin}/group/${groupId}?t=${Date.now()}`);
     setCopied(false);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-xs">
-      <div className="bg-[#1c1c1e] border border-gray-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
-        <div className="px-6 py-4 border-b border-gray-800 flex items-center justify-between">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+      <div className="bg-[#111b21] border border-[#202c33] rounded-lg w-full max-w-md overflow-hidden">
+        <div className="px-5 py-4 border-b border-[#202c33] flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <Link2 className="w-5 h-5 text-purple-400" />
-            <h3 className="text-white font-semibold text-lg">Invite via Link</h3>
+            <Link2 className="w-5 h-5 text-[#38bdf8]" />
+            <h3 className="text-[#e9edef] font-medium text-base">Invite via link</h3>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
+          <button onClick={onClose} className="text-[#8696a0] hover:text-[#e9edef] transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
-          <div className="text-center">
-            <h4 className="text-white font-medium text-base mb-1">{groupName}</h4>
-            <p className="text-xs text-gray-400">Anyone with anoNote can use this link to join this group.</p>
+        <div className="p-5 space-y-4">
+          <div>
+            <h4 className="text-[#e9edef] font-medium text-sm">{groupName}</h4>
+            <p className="text-xs text-[#8696a0] mt-0.5">Anyone with AnoNote can use this link to join this group.</p>
           </div>
 
-          <div className="bg-[#2c2c2e] border border-gray-800 rounded-xl p-4 flex items-center gap-3">
-            <span className="text-sm text-purple-300 font-mono flex-1 truncate">{inviteCode}</span>
+          <div className="bg-[#202c33] border border-[#2a3942] rounded-md p-3 flex items-center gap-3">
+            <span className="text-xs text-[#e9edef] font-mono flex-1 truncate select-all">{inviteCode}</span>
             <button
               onClick={handleCopy}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors flex-shrink-0"
+              className="bg-[#0284c7] hover:bg-[#0369a1] text-white px-3 py-1.5 rounded text-xs font-medium flex items-center gap-1.5 transition-colors flex-shrink-0"
             >
-              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
               {copied ? "Copied" : "Copy"}
             </button>
           </div>
 
-          <div className="flex flex-col gap-2 pt-2">
+          <div className="space-y-2 pt-1">
             <button
               onClick={handleCopy}
-              className="w-full bg-[#2c2c2e] hover:bg-[#3c3c3e] text-white py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2"
+              className="w-full bg-[#202c33] hover:bg-[#2a3942] text-[#e9edef] py-2 rounded-md text-xs font-medium transition-colors flex items-center justify-center gap-2 border border-[#2a3942]"
             >
-              <Share2 className="w-4 h-4 text-purple-400" />
-              Share Link to Clipboard
+              <Share2 className="w-4 h-4 text-[#38bdf8]" />
+              Share Link
             </button>
             <button
               onClick={handleResetLink}
-              className="w-full bg-transparent hover:bg-red-500/10 text-red-400 py-2 rounded-xl text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
+              className="w-full text-[#f15c6d] hover:bg-[#f15c6d]/10 py-2 rounded-md text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
             >
               <RefreshCw className="w-3.5 h-3.5" />
-              Revoke & Reset Invite Link
+              Reset Link
             </button>
           </div>
         </div>
 
-        <div className="px-6 py-4 bg-[#111111] border-t border-gray-800 flex items-center justify-end">
+        <div className="px-5 py-3.5 bg-[#0b141a] border-t border-[#202c33] flex items-center justify-end">
           <button
             onClick={onClose}
-            className="px-5 py-2 bg-[#2c2c2e] hover:bg-[#3c3c3e] text-white rounded-lg text-sm font-medium transition-colors"
+            className="px-4 py-2 bg-[#202c33] hover:bg-[#2a3942] text-[#e9edef] rounded-md text-xs font-medium transition-colors"
           >
             Done
           </button>

@@ -22,6 +22,18 @@ service cloud.firestore {
       }
     }
     
+    match /statuses/{statusId} {
+      allow read, write: if true;
+    }
+
+    match /calls/{callId} {
+      allow read, write: if true;
+    }
+
+    match /channels/{channelId} {
+      allow read, write: if true;
+    }
+    
     match /broadcasts/{broadcastId} {
       allow read, write: if true;
     }

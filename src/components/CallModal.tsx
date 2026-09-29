@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Mic, MicOff, Video, VideoOff, PhoneOff, ShieldCheck, Volume2 } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, PhoneOff, Phone, ShieldCheck } from 'lucide-react';
 import { User } from '../types';
 
 interface CallModalProps {
@@ -50,7 +50,7 @@ export const CallModal: React.FC<CallModalProps> = ({
       <div className="w-full max-w-lg bg-[#111b21] border border-[#222d34] rounded-3xl shadow-2xl overflow-hidden text-[#e9edef] flex flex-col items-center p-8 relative">
         
         {/* Top encryption indicator */}
-        <div className="absolute top-6 left-6 flex items-center gap-1.5 text-xs text-[#00a884] bg-[#00a884]/10 px-3 py-1 rounded-full border border-[#00a884]/30">
+        <div className="absolute top-6 left-6 flex items-center gap-1.5 text-xs text-[#00a8fc] bg-[#00a8fc]/10 px-3 py-1 rounded-full border border-[#00a8fc]/30">
           <ShieldCheck className="w-3.5 h-3.5" />
           <span>End-to-End Encrypted {type === 'video' ? 'Video' : 'Voice'} Call</span>
         </div>
@@ -69,14 +69,14 @@ export const CallModal: React.FC<CallModalProps> = ({
               <img 
                 src={partner.avatar} 
                 alt={partner.name} 
-                className="w-32 h-32 rounded-full object-cover border-4 border-[#00a884] shadow-2xl"
+                className="w-32 h-32 rounded-full object-cover border-4 border-[#00a8fc] shadow-2xl"
               />
-              <span className="absolute bottom-1 right-1 w-5 h-5 bg-[#00a884] border-4 border-[#111b21] rounded-full animate-pulse" />
+              <span className="absolute bottom-1 right-1 w-5 h-5 bg-[#00a8fc] border-4 border-[#111b21] rounded-full animate-pulse" />
             </div>
           )}
 
           <h2 className="text-2xl font-bold tracking-tight mb-1">{partner.name}</h2>
-          <p className="text-xs font-mono text-[#00a884] mb-3">{partner.anonId}</p>
+          <p className="text-xs font-mono text-[#00a8fc] mb-3">{partner.anonId}</p>
           <p className="text-sm text-[#8696a0]">
             {callState === 'ringing' 
               ? (isIncoming ? 'Incoming Secure Call...' : 'Connecting securely...') 
@@ -97,18 +97,18 @@ export const CallModal: React.FC<CallModalProps> = ({
               </button>
               <button
                 onClick={handleAcceptCall}
-                className="w-14 h-14 rounded-full bg-[#00a884] hover:bg-[#008f72] text-[#111b21] flex items-center justify-center shadow-xl transition-transform hover:scale-105"
+                className="w-14 h-14 rounded-full bg-[#00a8fc] hover:bg-[#0284c7] text-[#0b141a] flex items-center justify-center shadow-xl transition-transform hover:scale-105"
                 title="Accept"
               >
-                <Volume2 className="w-6 h-6" />
+                <Phone className="w-6 h-6" />
               </button>
             </>
           ) : (
             <>
               <button
                 onClick={() => setIsMuted(!isMuted)}
-                className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${isMuted ? 'bg-red-500/20 text-red-400 border border-red-500/40' : 'bg-[#2a3942] hover:bg-[#374248] text-white'}`}
-                title={isMuted ? "Unmute" : "Mute"}
+                className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${isMuted ? 'bg-red-500 text-white' : 'bg-[#2a3942] text-white hover:bg-[#374248]'}`}
+                title={isMuted ? 'Unmute' : 'Mute'}
               >
                 {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
               </button>
@@ -116,7 +116,8 @@ export const CallModal: React.FC<CallModalProps> = ({
               {type === 'video' && (
                 <button
                   onClick={() => setIsVideoOff(!isVideoOff)}
-                  className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${isVideoOff ? 'bg-red-500/20 text-red-400 border border-red-500/40' : 'bg-[#2a3942] hover:bg-[#374248] text-white'}`}
+                  className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${isVideoOff ? 'bg-red-500 text-white' : 'bg-[#2a3942] text-white hover:bg-[#374248]'}`}
+                  title={isVideoOff ? 'Turn Video On' : 'Turn Video Off'}
                 >
                   {isVideoOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
                 </button>
@@ -124,10 +125,10 @@ export const CallModal: React.FC<CallModalProps> = ({
 
               <button
                 onClick={onEndCall}
-                className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center shadow-2xl transition-transform hover:scale-105"
+                className="w-14 h-14 rounded-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center shadow-xl transition-transform hover:scale-105"
                 title="End Call"
               >
-                <PhoneOff className="w-7 h-7" />
+                <PhoneOff className="w-6 h-6" />
               </button>
             </>
           )}

@@ -21,25 +21,25 @@ export function SettingsOption({
   return (
     <div
       onClick={onClick}
-      className={`flex items-center justify-between px-4 py-3 border-b border-gray-800 ${
-        onClick ? "hover:bg-[#1c1c1e] cursor-pointer transition-colors" : ""
+      className={`flex items-center justify-between px-4 py-3.5 border-b border-[#202c33]/40 ${
+        onClick ? "hover:bg-[#202c33]/40 active:bg-[#202c33]/60 cursor-pointer transition-colors" : ""
       }`}
     >
-      <div className="flex-1 min-w-0">
-        <h3 className="text-white font-medium">{title}</h3>
+      <div className="flex-1 min-w-0 pr-3">
+        <h3 className="text-[#e9edef] text-[15px] font-normal leading-snug">{title}</h3>
         {description && (
-          <p className="text-sm text-gray-400 mt-0.5">{description}</p>
+          <p className="text-[13px] text-[#8696a0] mt-0.5 leading-snug">{description}</p>
         )}
       </div>
       {rightContent ? (
-        <div className="flex-shrink-0 ml-3">{rightContent}</div>
+        <div className="flex-shrink-0 ml-2">{rightContent}</div>
       ) : value ? (
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <span className="text-gray-400 text-sm">{value}</span>
-          {showArrow && <ChevronRight className="w-5 h-5 text-gray-400" />}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <span className="text-[#8696a0] text-sm">{value}</span>
+          {showArrow && <ChevronRight className="w-4 h-4 text-[#8696a0]" />}
         </div>
       ) : showArrow ? (
-        <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
+        <ChevronRight className="w-4 h-4 text-[#8696a0] flex-shrink-0" />
       ) : null}
     </div>
   );

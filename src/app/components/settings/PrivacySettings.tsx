@@ -1,107 +1,105 @@
+import { useState } from "react";
 import { SettingsPage } from "./SettingsPage";
 import { SettingsOption } from "./SettingsOption";
 import { ToggleSwitch } from "./ToggleSwitch";
-import { Lock } from "lucide-react";
+import { Lock, Check } from "lucide-react";
 
 export function PrivacySettings() {
+  const [readReceipts, setReadReceipts] = useState(() => localStorage.getItem("anonote_read_receipts") !== "false");
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 2500);
+  };
+
+  const handleToggleReceipts = (checked: boolean) => {
+    setReadReceipts(checked);
+    localStorage.setItem("anonote_read_receipts", checked ? "true" : "false");
+    showToast(checked ? "Read receipts enabled" : "Read receipts disabled");
+  };
+
   return (
     <SettingsPage title="Privacy">
-      {/* Who can see my personal info */}
-      <div className="bg-[#1c1c1e] mt-4">
-        <div className="px-4 py-3 border-b border-gray-800">
-          <h3 className="text-sm text-gray-400 uppercase tracking-wide">
+      {toastMessage && (
+        <div className="fixed top-4 right-4 z-50 bg-[#0284c7] text-white px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium">
+          <Check className="w-4 h-4" />
+          {toastMessage}
+        </div>
+      )}
+
+      {/* Visibility */}
+      <div className="bg-[#111b21] mt-3 border-b border-[#202c33]">
+        <div className="px-4 py-3 border-b border-[#202c33]/60">
+          <h3 className="text-xs font-semibold text-[#38bdf8] uppercase tracking-wider">
             Who can see my personal info
           </h3>
         </div>
         <SettingsOption
           title="Last seen & online"
-          description="Who can see when you're online"
           value="Nobody"
           showArrow
         />
         <SettingsOption
           title="Profile photo"
-          description="Who can see your profile photo"
-          value="My contacts"
+          value="Contacts"
           showArrow
         />
         <SettingsOption
           title="About"
-          description="Who can see your about info"
           value="Everyone"
           showArrow
         />
         <SettingsOption
           title="Status"
-          description="Who can see your status updates"
           value="My contacts"
           showArrow
         />
       </div>
 
-      {/* Messaging */}
-      <div className="bg-[#1c1c1e] mt-4">
-        <div className="px-4 py-3 border-b border-gray-800">
-          <h3 className="text-sm text-gray-400 uppercase tracking-wide">Messaging</h3>
+      {/* Disappearing Messages & Receipts */}
+      <div className="bg-[#111b21] mt-3 border-b border-[#202c33]">
+        <div className="px-4 py-3 border-b border-[#202c33]/60">
+          <h3 className="text-xs font-semibold text-[#38bdf8] uppercase tracking-wider">Messaging</h3>
         </div>
         <SettingsOption
           title="Read receipts"
-          description="If turned off, you won't send or receive read receipts"
-          rightContent={<ToggleSwitch defaultChecked={true} />}
+          description="If turned off, you won't send or receive read receipts. Read receipts are always sent for group chats."
+          rightContent={<ToggleSwitch defaultChecked={readReceipts} onChange={handleToggleReceipts} />}
         />
         <SettingsOption
-          title="Disappearing messages"
-          description="Default timer for new chats"
+          title="Default message timer"
+          description="Start new chats with disappearing messages set to"
           value="Off"
           showArrow
         />
       </div>
 
-      {/* Groups */}
-      <div className="bg-[#1c1c1e] mt-4">
-        <div className="px-4 py-3 border-b border-gray-800">
-          <h3 className="text-sm text-gray-400 uppercase tracking-wide">Groups</h3>
-        </div>
-        <SettingsOption
-          title="Groups"
-          description="Who can add you to groups"
-          value="Everyone"
-          showArrow
-        />
-      </div>
-
       {/* Advanced */}
-      <div className="bg-[#1c1c1e] mt-4">
-        <div className="px-4 py-3 border-b border-gray-800">
-          <h3 className="text-sm text-gray-400 uppercase tracking-wide">Advanced</h3>
+      <div className="bg-[#111b21] mt-3 border-b border-[#202c33]">
+        <div className="px-4 py-3 border-b border-[#202c33]/60">
+          <h3 className="text-xs font-semibold text-[#38bdf8] uppercase tracking-wider">Security & Locking</h3>
         </div>
         <SettingsOption
           title="Blocked contacts"
-          description="0 contacts"
+          value="0"
           showArrow
         />
         <SettingsOption
-          title="Fingerprint lock"
-          description="Lock anoNote with fingerprint or biometrics"
+          title="App lock"
+          description="Require authentication to open AnoNote"
           rightContent={<ToggleSwitch defaultChecked={false} />}
-        />
-        <SettingsOption
-          title="App lock timeout"
-          description="Require authentication after"
-          value="1 minute"
-          showArrow
         />
       </div>
 
-      {/* Info */}
+      {/* Notice */}
       <div className="px-4 py-6">
-        <div className="flex gap-3 bg-purple-600/10 border border-purple-600/20 rounded-lg p-4">
-          <Lock className="w-5 h-5 text-purple-400 flex-shrink-0 mt-0.5" />
+        <div className="flex gap-3 bg-[#111b21] border border-[#202c33] rounded-md p-4">
+          <Lock className="w-5 h-5 text-[#38bdf8] flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm text-white mb-1 font-medium">End-to-end Encryption</p>
-            <p className="text-sm text-gray-400 leading-relaxed">
-              All your messages are protected with end-to-end encryption. Only you
-              and your contact can read them.
+            <p className="text-sm text-[#e9edef] mb-1 font-medium">End-to-End Encryption</p>
+            <p className="text-xs text-[#8696a0] leading-relaxed">
+              All private messages and group conversations on AnoNote are end-to-end encrypted. No third parties can intercept or read them.
             </p>
           </div>
         </div>

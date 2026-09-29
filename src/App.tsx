@@ -8,8 +8,11 @@ import { SettingsModal } from './components/SettingsModal';
 import { StatusModal } from './components/StatusModal';
 import { SecurityBadgeModal } from './components/SecurityBadgeModal';
 import { CallModal } from './components/CallModal';
+import { KnowledgeBaseModal } from './components/KnowledgeBaseModal';
+import { PWAInstallButton } from './components/PWAInstallButton';
+import { OfflineIndicator } from './components/OfflineIndicator';
 import { User, Chat, Message, StatusStory, CallRecord } from './types';
-import { ShieldCheck, Lock, MessageSquare } from 'lucide-react';
+import { ShieldCheck, Lock, MessageSquare, HelpCircle, Smartphone } from 'lucide-react';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
@@ -28,6 +31,7 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [isSecurityOpen, setIsSecurityOpen] = useState(false);
+  const [isKnowledgeBaseOpen, setIsKnowledgeBaseOpen] = useState(false);
   
   // Call state
   const [activeCall, setActiveCall] = useState<{
@@ -54,6 +58,24 @@ export default function App() {
     }
   ]);
   const [callsHistory, setCallsHistory] = useState<CallRecord[]>([]);
+
+  // Check URL query parameters for PWA shortcut actions and SEO deep links
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const action = params.get('action');
+    const view = params.get('view');
+    const addAnon = params.get('add');
+
+    if (action === 'new-chat' || addAnon) {
+      setIsNewChatOpen(true);
+    } else if (action === 'status') {
+      setIsStatusOpen(true);
+    } else if (view === 'faq' || view === 'features') {
+      setIsKnowledgeBaseOpen(true);
+    } else if (view === 'security') {
+      setIsSecurityOpen(true);
+    }
+  }, []);
 
   // Initialize Socket.IO connection when user logs in
   useEffect(() => {
@@ -251,8 +273,11 @@ export default function App() {
   return (
     <div className="flex h-screen w-screen bg-[#0b141a] overflow-hidden font-sans">
       
-      {/* WhatsApp desktop background stripe */}
-      <div className="absolute top-0 inset-x-0 h-32 bg-[#00a884] pointer-events-none hidden md:block" />
+      {/* Offline connectivity toast banner */}
+      <OfflineIndicator />
+
+      {/* AnoNote desktop background blue stripe */}
+      <div className="absolute top-0 inset-x-0 h-32 bg-[#0284c7] pointer-events-none hidden md:block" />
 
       <div className="w-full max-w-7xl mx-auto h-full md:h-[calc(100vh-3rem)] md:my-auto md:rounded-xl shadow-2xl flex overflow-hidden border border-[#222d34] z-10">
         
@@ -268,6 +293,7 @@ export default function App() {
           onOpenNewChat={() => setIsNewChatOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onOpenStatus={() => setIsStatusOpen(true)}
+          onOpenKnowledgeBase={() => setIsKnowledgeBaseOpen(true)}
           statuses={statuses}
           calls={callsHistory}
           onStartCall={(chatId, type) => handleStartCall(chatId, type)}
@@ -285,19 +311,29 @@ export default function App() {
             isTyping={!!typingMap[activeChat.id]}
           />
         ) : (
-          <div className="flex-1 bg-[#222d34]/40 flex flex-col items-center justify-center text-center p-8 text-[#e9edef]">
-            <div className="w-20 h-20 rounded-3xl bg-[#00a884]/20 border border-[#00a884]/40 flex items-center justify-center text-[#00a884] mb-6 shadow-xl">
+          <main className="flex-1 bg-[#222d34]/40 flex flex-col items-center justify-center text-center p-8 text-[#e9edef]">
+            <div className="w-20 h-20 rounded-3xl bg-[#00a8fc]/15 border border-[#00a8fc]/30 flex items-center justify-center text-[#00a8fc] mb-6 shadow-xl shadow-[#00a8fc]/5">
               <MessageSquare className="w-10 h-10" />
             </div>
-            <h2 className="text-3xl font-light tracking-tight mb-2">AnonWhatsApp Web</h2>
+            <h1 className="text-3xl font-light tracking-tight mb-2">AnoNote Web App</h1>
             <p className="text-sm text-[#8696a0] max-w-sm leading-relaxed mb-6">
-              Send and receive end-to-end encrypted messages without linking phone numbers. Your identity is 100% anonymous.
+              Send and receive zero-knowledge encrypted messages without phone numbers or emails. Your identity is 100% anonymous.
             </p>
-            <div className="flex items-center gap-2 text-xs text-[#00a884] bg-[#00a884]/10 px-4 py-2 rounded-full border border-[#00a884]/30">
-              <Lock className="w-3.5 h-3.5" />
-              <span>End-to-End Encrypted Protocol Active</span>
+            
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <div className="flex items-center gap-2 text-xs text-[#00a8fc] bg-[#00a8fc]/10 px-4 py-2 rounded-full border border-[#00a8fc]/30">
+                <Lock className="w-3.5 h-3.5" />
+                <span>End-to-End Encrypted Protocol Active</span>
+              </div>
+              <button
+                onClick={() => setIsKnowledgeBaseOpen(true)}
+                className="flex items-center gap-1.5 text-xs text-[#8696a0] hover:text-white px-3 py-2 rounded-full hover:bg-[#202c33] transition-colors"
+              >
+                <HelpCircle className="w-3.5 h-3.5 text-[#00a8fc]" />
+                <span>Privacy &amp; FAQ</span>
+              </button>
             </div>
-          </div>
+          </main>
         )}
 
       </div>
@@ -336,6 +372,13 @@ export default function App() {
           currentUser={currentUser}
           chatPartner={activePartner}
           onClose={() => setIsSecurityOpen(false)}
+        />
+      )}
+
+      {isKnowledgeBaseOpen && (
+        <KnowledgeBaseModal
+          currentUser={currentUser}
+          onClose={() => setIsKnowledgeBaseOpen(false)}
         />
       )}
 

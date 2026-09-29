@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router";
-import { ShieldCheck, Eye, EyeOff, Lock, Shield, User, Sparkles, ArrowRight, CheckCircle2, Plus } from "lucide-react";
+import { ShieldCheck, Eye, EyeOff, Lock, User, ArrowRight, Sparkles, Plus } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 export function Login() {
@@ -15,7 +15,7 @@ export function Login() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!anonId.trim()) {
-      setError("Please enter your Anon ID or numeric code");
+      setError("Please enter your Anon ID");
       return;
     }
 
@@ -36,7 +36,7 @@ export function Login() {
       await quickStart();
       navigate("/");
     } catch {
-      setError("Failed to create quick session.");
+      setError("Failed to create instant session.");
     }
   };
 
@@ -46,59 +46,58 @@ export function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#0b141a] text-[#e9edef] flex items-center justify-center p-4 font-sans select-none">
       <div className="w-full max-w-md">
         {/* Logo and branding */}
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-purple-600 to-indigo-600 mb-4 shadow-lg shadow-purple-600/30">
-            <ShieldCheck className="w-10 h-10 text-white" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#111b21] border border-[#202c33] mb-3 text-[#38bdf8]">
+            <ShieldCheck className="w-8 h-8 text-[#38bdf8]" />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-1 tracking-tight">anoNote</h1>
-          <p className="text-xs text-purple-400 font-mono mb-2">anoNote.icepab.name.ng</p>
-          <p className="text-gray-400 text-sm">Frictionless, encrypted anonymous messaging</p>
+          <h1 className="text-2xl font-bold text-[#e9edef] tracking-tight">AnoNote</h1>
+          <p className="text-xs text-[#8696a0] mt-1">End-to-End Encrypted Anonymous Messenger</p>
         </div>
 
         {/* 1-CLICK INSTANT QUICK JOIN BANNER */}
-        <div className="bg-gradient-to-r from-purple-900/40 via-purple-800/30 to-indigo-900/40 border border-purple-500/40 rounded-2xl p-4 mb-4 shadow-xl flex items-center justify-between gap-3">
+        <div className="bg-[#111b21] border border-[#202c33] rounded-lg p-4 mb-4 flex items-center justify-between gap-3">
           <div>
-            <div className="flex items-center gap-1.5 text-xs font-bold text-purple-300 uppercase tracking-wider">
-              <Sparkles className="w-3.5 h-3.5 text-yellow-400" />
-              Instant Start (0 Setup)
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-[#38bdf8] uppercase tracking-wider">
+              <Sparkles className="w-3.5 h-3.5" />
+              Instant 1-Tap Entry
             </div>
-            <p className="text-xs text-gray-300 mt-0.5">
-              Jump straight into messaging with 1 tap.
+            <p className="text-xs text-[#8696a0] mt-0.5">
+              Jump directly into messaging with no credentials.
             </p>
           </div>
           <button
             onClick={handleQuickJoin}
-            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-xl transition-all shadow-md shadow-purple-600/30 whitespace-nowrap flex items-center gap-1.5"
+            className="px-3.5 py-1.5 bg-[#0284c7] hover:bg-[#0369a1] text-white text-xs font-medium rounded-md transition-colors whitespace-nowrap flex items-center gap-1.5"
           >
-            Quick Join
+            Quick Start
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
 
         {/* SAVED IDENTITIES ON THIS DEVICE */}
         {savedAccounts.length > 0 && (
-          <div className="bg-[#1c1c1e] rounded-2xl border border-gray-800 p-5 mb-4 shadow-xl">
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">
-              Continue With Saved Identity
+          <div className="bg-[#111b21] rounded-lg border border-[#202c33] p-4 mb-4">
+            <h3 className="text-xs font-semibold text-[#8696a0] uppercase tracking-wider mb-2.5">
+              Saved Identities on Device
             </h3>
-            <div className="space-y-2 max-h-48 overflow-y-auto">
+            <div className="space-y-1.5 max-h-48 overflow-y-auto divide-y divide-[#202c33]/40">
               {savedAccounts.slice(0, 3).map((account) => (
                 <button
                   key={account.id}
                   onClick={() => handleSelectSaved(account.id)}
-                  className="w-full flex items-center justify-between p-3 rounded-xl bg-[#2c2c2e] hover:bg-[#3c3c3e] border border-gray-700/60 hover:border-purple-500/50 transition-all text-left"
+                  className="w-full flex items-center justify-between p-2.5 rounded-md hover:bg-[#202c33] transition-colors text-left"
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{account.avatar}</span>
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-xl">{account.avatar}</span>
                     <div>
-                      <div className="text-sm font-semibold text-white">{account.name}</div>
-                      <div className="text-[11px] text-gray-400 font-mono">{account.anonId}</div>
+                      <div className="text-sm font-medium text-[#e9edef]">{account.name}</div>
+                      <div className="text-[11px] text-[#8696a0] font-mono">{account.anonId}</div>
                     </div>
                   </div>
-                  <span className="text-xs text-purple-400 font-medium flex items-center gap-1">
+                  <span className="text-xs text-[#38bdf8] font-medium flex items-center gap-1">
                     Enter <ArrowRight className="w-3.5 h-3.5" />
                   </span>
                 </button>
@@ -108,11 +107,11 @@ export function Login() {
         )}
 
         {/* Regular Login Form */}
-        <div className="bg-[#1c1c1e] rounded-2xl border border-gray-800 p-6 md:p-8 shadow-2xl">
-          <h2 className="text-xl font-semibold text-white mb-4">Sign In with Existing Anon ID</h2>
+        <div className="bg-[#111b21] rounded-lg border border-[#202c33] p-6">
+          <h2 className="text-base font-medium text-[#e9edef] mb-4">Sign in with Anon ID</h2>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-500/15 border border-red-500/30 rounded-xl text-xs text-red-400 font-medium">
+            <div className="mb-4 p-3 bg-[#f15c6d]/15 border border-[#f15c6d]/30 rounded-md text-xs text-[#f15c6d]">
               {error}
             </div>
           )}
@@ -120,8 +119,8 @@ export function Login() {
           <form onSubmit={handleLogin} className="space-y-4">
             {/* Anon ID */}
             <div>
-              <label className="block text-xs font-medium text-gray-300 mb-1.5">
-                Anon ID or Number
+              <label className="block text-xs font-medium text-[#8696a0] mb-1.5">
+                Anon ID
               </label>
               <div className="relative">
                 <input
@@ -131,21 +130,19 @@ export function Login() {
                     setAnonId(e.target.value);
                     setError(null);
                   }}
-                  placeholder="e.g. Anon #8462 or 8462"
-                  className="w-full bg-[#2c2c2e] text-white placeholder-gray-500 rounded-xl px-4 py-2.5 pl-10 outline-none focus:ring-2 focus:ring-purple-600 transition-all text-sm border border-gray-700"
+                  placeholder="e.g. Anon #8462"
+                  className="w-full bg-[#202c33] text-[#e9edef] placeholder-[#8696a0] rounded-md px-3.5 py-2.5 pl-9 outline-none focus:border-[#0284c7] transition-colors text-sm border border-[#2a3942]"
                   required
                 />
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8696a0]" />
               </div>
             </div>
 
             {/* PIN */}
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-medium text-gray-300">
-                  Security PIN <span className="text-gray-500 font-normal">(optional if not set)</span>
-                </label>
-              </div>
+              <label className="block text-xs font-medium text-[#8696a0] mb-1.5">
+                Security PIN <span className="text-[#8696a0]/70 font-normal">(optional if not set)</span>
+              </label>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -154,14 +151,14 @@ export function Login() {
                     setPin(e.target.value);
                     setError(null);
                   }}
-                  placeholder="Enter your PIN (or leave blank)"
-                  className="w-full bg-[#2c2c2e] text-white placeholder-gray-500 rounded-xl px-4 py-2.5 pl-10 pr-10 outline-none focus:ring-2 focus:ring-purple-600 transition-all text-sm border border-gray-700"
+                  placeholder="Enter PIN if configured"
+                  className="w-full bg-[#202c33] text-[#e9edef] placeholder-[#8696a0] rounded-md px-3.5 py-2.5 pl-9 pr-9 outline-none focus:border-[#0284c7] transition-colors text-sm border border-[#2a3942]"
                 />
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8696a0]" />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8696a0] hover:text-[#e9edef]"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -171,64 +168,31 @@ export function Login() {
             {/* Login button */}
             <button
               type="submit"
-              className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2.5 rounded-xl transition-colors shadow-lg shadow-purple-600/30 text-sm mt-2"
+              className="w-full bg-[#0284c7] hover:bg-[#0369a1] text-white font-medium py-2.5 rounded-md transition-colors text-sm mt-2"
             >
-              Sign In to anoNote
+              Enter AnoNote
             </button>
           </form>
-
-          {/* Test peer quick fill */}
-          <div className="mt-4 pt-4 border-t border-gray-800 text-center">
-            <p className="text-[11px] text-gray-500 mb-2">Or test quick login with active demo identities:</p>
-            <div className="flex justify-center gap-2">
-              {["Anon #3847", "Anon #7291", "Anon #5612"].map((id) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => {
-                    setAnonId(id);
-                    setPin("");
-                  }}
-                  className="text-[11px] font-mono text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 px-2 py-1 rounded-md transition-colors"
-                >
-                  {id}
-                </button>
-              ))}
-            </div>
-          </div>
 
           {/* Divider */}
           <div className="relative my-5">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-800"></div>
+              <div className="w-full border-t border-[#202c33]"></div>
             </div>
             <div className="relative flex justify-center text-xs">
-              <span className="px-2 bg-[#1c1c1e] text-gray-500">
-                New to anoNote?
+              <span className="px-2 bg-[#111b21] text-[#8696a0]">
+                Or
               </span>
             </div>
           </div>
 
           {/* Sign up link */}
           <Link to="/signup">
-            <button className="w-full border border-purple-600/60 hover:border-purple-500 text-purple-400 hover:bg-purple-600/10 font-medium py-2.5 rounded-xl transition-colors text-xs flex items-center justify-center gap-1.5">
+            <button className="w-full border border-[#2a3942] hover:bg-[#202c33] text-[#38bdf8] font-medium py-2 rounded-md transition-colors text-xs flex items-center justify-center gap-1.5">
               <Plus className="w-3.5 h-3.5" />
               Create Custom Anon Identity
             </button>
           </Link>
-        </div>
-
-        {/* Security notice */}
-        <div className="mt-5 flex gap-3 bg-purple-600/10 border border-purple-600/20 rounded-xl p-3.5">
-          <Shield className="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-xs text-white font-medium mb-0.5">
-              Zero-Knowledge Protocol
-            </p>
-            <p className="text-[11px] text-gray-400 leading-relaxed">
-              No phone numbers, emails, or personal data collected. All keys are stored safely on your device.
-            </p>
-          </div>
         </div>
       </div>
     </div>

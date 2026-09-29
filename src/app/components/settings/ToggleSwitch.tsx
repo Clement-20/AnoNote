@@ -16,14 +16,15 @@ export function ToggleSwitch({ defaultChecked = false, onChange }: ToggleSwitchP
 
   return (
     <button
+      type="button"
       onClick={handleToggle}
-      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-        checked ? "bg-purple-600" : "bg-gray-600"
+      className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors ${
+        checked ? "bg-[#0284c7]" : "bg-[#374248]"
       }`}
     >
       <span
-        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-          checked ? "translate-x-6" : "translate-x-0.5"
+        className={`inline-block h-4 w-4 transform rounded-full bg-[#e9edef] transition-transform ${
+          checked ? "translate-x-5" : "translate-x-0.5"
         }`}
       />
     </button>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { X, User as UserIcon, Shield, Bell, Key, Sparkles } from 'lucide-react';
+import { X, User as UserIcon, Shield, Bell, Key, Smartphone, Download, Globe } from 'lucide-react';
 import { User } from '../types';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface SettingsModalProps {
   currentUser: User;
@@ -39,23 +40,37 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         
         <div className="p-4 bg-[#202c33] flex items-center justify-between border-b border-[#222d34]">
           <h2 className="text-lg font-semibold flex items-center gap-2">
-            <UserIcon className="w-5 h-5 text-[#00a884]" />
-            Anonymous Settings & Profile
+            <UserIcon className="w-5 h-5 text-[#00a8fc]" />
+            AnoNote Settings &amp; Profile
           </h2>
-          <button onClick={onClose} className="p-2 hover:bg-[#374248] rounded-full text-[#8696a0] hover:text-white">
+          <button onClick={onClose} className="p-2 hover:bg-[#374248] rounded-full text-[#8696a0] hover:text-white transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <form onSubmit={handleSave} className="p-6 overflow-y-auto space-y-6 flex-1">
           {/* Profile Header */}
-          <div className="flex items-center gap-4 bg-[#2a3942]/60 p-4 rounded-xl">
-            <img src={currentUser.avatar} alt="Avatar" className="w-16 h-16 rounded-full object-cover border-2 border-[#00a884]" />
+          <div className="flex items-center gap-4 bg-[#2a3942]/60 p-4 rounded-xl border border-[#222d34]">
+            <img src={currentUser.avatar} alt="Avatar" className="w-16 h-16 rounded-full object-cover border-2 border-[#00a8fc]" />
             <div>
               <h3 className="text-base font-bold text-white">{currentUser.name}</h3>
-              <p className="text-xs font-mono text-[#00a884]">{currentUser.anonId}</p>
+              <p className="text-xs font-mono text-[#00a8fc]">{currentUser.anonId}</p>
               <p className="text-xs text-[#8696a0] mt-1">{currentUser.about}</p>
             </div>
+          </div>
+
+          {/* PWA Integration Card */}
+          <div className="bg-[#202c33]/50 border border-[#222d34] p-4 rounded-xl space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-semibold text-white">
+                <Smartphone className="w-4 h-4 text-[#00a8fc]" />
+                <span>Progressive Web App (PWA)</span>
+              </div>
+              <PWAInstallButton variant="settings" />
+            </div>
+            <p className="text-[11px] text-[#8696a0] leading-relaxed">
+              Install AnoNote directly to your device home screen for lightning-fast launch and offline encrypted storage.
+            </p>
           </div>
 
           <div className="space-y-4">
@@ -67,7 +82,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-4 py-3 bg-[#2a3942] rounded-xl text-sm text-white focus:outline-none focus:border-[#00a884]"
+                className="w-full px-4 py-3 bg-[#2a3942] rounded-xl text-sm text-white focus:outline-none focus:border-[#00a8fc] border border-transparent"
               />
             </div>
 
@@ -79,7 +94,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 type="text"
                 value={about}
                 onChange={(e) => setAbout(e.target.value)}
-                className="w-full px-4 py-3 bg-[#2a3942] rounded-xl text-sm text-white focus:outline-none focus:border-[#00a884]"
+                className="w-full px-4 py-3 bg-[#2a3942] rounded-xl text-sm text-white focus:outline-none focus:border-[#00a8fc] border border-transparent"
               />
             </div>
 
@@ -87,11 +102,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <label className="block text-xs font-medium text-[#8696a0] uppercase tracking-wider mb-1">
                 Cryptographic Identity Fingerprint
               </label>
-              <div className="flex items-center gap-2 bg-[#2a3942] px-4 py-3 rounded-xl text-xs font-mono text-[#00a884]">
+              <div className="flex items-center gap-2 bg-[#2a3942] px-4 py-3 rounded-xl text-xs font-mono text-[#00a8fc]">
                 <Key className="w-4 h-4 shrink-0" />
                 <span className="truncate">{currentUser.publicKey}</span>
               </div>
-              <p className="text-[11px] text-[#8696a0] mt-1">Generated securely on device. Never shared with servers.</p>
+              <p className="text-[11px] text-[#8696a0] mt-1">Generated securely on device. Never stored on remote servers.</p>
             </div>
           </div>
 
@@ -105,7 +120,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </button>
             <button
               type="submit"
-              className="px-6 py-2.5 bg-[#00a884] hover:bg-[#008f72] text-[#111b21] font-bold rounded-xl text-sm transition-colors flex items-center gap-2"
+              className="px-6 py-2.5 bg-[#00a8fc] hover:bg-[#0284c7] text-[#0b141a] font-bold rounded-xl text-sm transition-colors flex items-center gap-2"
             >
               {saved ? 'Saved ✓' : 'Save Changes'}
             </button>

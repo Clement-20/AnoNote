@@ -11,20 +11,20 @@ export function SettingsPage({ title, children }: SettingsPageProps) {
   const navigate = useNavigate();
 
   return (
-    <div className="flex flex-col h-screen bg-[#0a0a0a]">
+    <div className="flex flex-col h-screen bg-[#0b141a] text-[#e9edef] font-sans select-none">
       {/* Header */}
-      <header className="bg-[#1c1c1e] px-4 py-3 flex items-center gap-3 border-b border-gray-800">
+      <header className="bg-[#111b21] px-4 py-3 flex items-center gap-4 border-b border-[#202c33] sticky top-0 z-20">
         <button
           onClick={() => navigate("/settings")}
-          className="text-purple-400 hover:text-purple-300 transition-colors"
+          className="text-[#aebac1] hover:text-[#e9edef] p-1 -ml-1 rounded-full hover:bg-[#202c33] transition-colors"
         >
-          <ArrowLeft className="w-6 h-6" />
+          <ArrowLeft className="w-5 h-5" />
         </button>
-        <h2 className="text-white font-medium text-lg">{title}</h2>
+        <h2 className="text-[#e9edef] font-medium text-[17px]">{title}</h2>
       </header>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto">{children}</div>
+      <div className="flex-1 overflow-y-auto pb-8">{children}</div>
     </div>
   );
 }

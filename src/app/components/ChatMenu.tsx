@@ -2,13 +2,10 @@ import { useRef, useEffect } from "react";
 import { useNavigate } from "react-router";
 import {
   Info,
-  Bell,
-  Search,
   Trash2,
   ThumbsDown,
   Shield,
   Palette,
-  X,
   VolumeX,
 } from "lucide-react";
 
@@ -77,49 +74,47 @@ export function ChatMenu({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-end p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-100">
+    <div className="fixed inset-0 z-50 flex items-start justify-end p-4 bg-transparent">
       <div
         ref={menuRef}
-        className="bg-[#181822]/95 border border-white/10 rounded-2xl shadow-2xl min-w-[260px] mt-12 mr-2 overflow-hidden backdrop-blur-2xl animate-in zoom-in-95 duration-100"
+        className="bg-[#202c33] border border-[#2a3942] rounded-md shadow-xl min-w-[200px] mt-12 mr-2 overflow-hidden py-1.5"
       >
-        <div className="p-1.5 space-y-0.5">
-          <MenuItem
-            icon={Info}
-            label="Contact Info"
-            onClick={handleViewInfo}
-          />
-          <MenuItem
-            icon={Palette}
-            label="Chat Wallpaper"
-            onClick={handleWallpaper}
-          />
-          <MenuItem
-            icon={VolumeX}
-            label="Mute Notifications"
-            onClick={onClose}
-          />
+        <MenuItem
+          icon={Info}
+          label="Contact info"
+          onClick={handleViewInfo}
+        />
+        <MenuItem
+          icon={Palette}
+          label="Wallpaper"
+          onClick={handleWallpaper}
+        />
+        <MenuItem
+          icon={VolumeX}
+          label="Mute notifications"
+          onClick={onClose}
+        />
 
-          <div className="h-px bg-white/[0.08] my-1" />
+        <div className="h-px bg-[#2a3942] my-1" />
 
-          <MenuItem
-            icon={Trash2}
-            label="Clear Chat Messages"
-            onClick={handleClear}
-            danger
-          />
-          <MenuItem
-            icon={Shield}
-            label="Block Peer"
-            onClick={onClose}
-            danger
-          />
-          <MenuItem
-            icon={ThumbsDown}
-            label="Report Suspicious User"
-            onClick={onClose}
-            danger
-          />
-        </div>
+        <MenuItem
+          icon={Trash2}
+          label="Clear chat"
+          onClick={handleClear}
+          danger
+        />
+        <MenuItem
+          icon={Shield}
+          label="Block"
+          onClick={onClose}
+          danger
+        />
+        <MenuItem
+          icon={ThumbsDown}
+          label="Report"
+          onClick={onClose}
+          danger
+        />
       </div>
     </div>
   );
@@ -136,13 +131,13 @@ function MenuItem({ icon: Icon, label, onClick, danger }: MenuItemProps) {
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all text-xs font-semibold text-left ${
+      className={`w-full flex items-center gap-3 px-4 py-2.5 transition-colors text-sm text-left ${
         danger
-          ? "text-red-400 hover:bg-red-500/10 hover:text-red-300"
-          : "text-gray-200 hover:bg-white/[0.08] hover:text-white"
+          ? "text-[#f15c6d] hover:bg-[#111b21]"
+          : "text-[#e9edef] hover:bg-[#111b21]"
       }`}
     >
-      <Icon className={`w-4 h-4 ${danger ? "text-red-400" : "text-gray-400"}`} />
+      <Icon className={`w-4 h-4 ${danger ? "text-[#f15c6d]" : "text-[#8696a0]"}`} />
       <span>{label}</span>
     </button>
   );

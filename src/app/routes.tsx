@@ -10,6 +10,7 @@ import { NewChat } from "./components/NewChat";
 import { ChatInfo } from "./components/ChatInfo";
 import { Login } from "./components/Login";
 import { SignUp } from "./components/SignUp";
+import { LiveCallView } from "./components/LiveCallView";
 import { GroupChatView } from "./components/GroupChatView";
 import { NewGroup } from "./components/NewGroup";
 import { GroupInfo } from "./components/GroupInfo";
@@ -84,6 +85,11 @@ export const router = createBrowserRouter([
             <Calls />
           </ResponsiveLayout>
         ),
+        errorElement: <RouteErrorBoundary />,
+      },
+      {
+        path: "call/:id",
+        Component: LiveCallView,
         errorElement: <RouteErrorBoundary />,
       },
       {

@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b141a" />
+      <stop offset="50%" stop-color="#111b21" />
+      <stop offset="100%" stop-color="#082f49" />
+    </linearGradient>
+    <linearGradient id="blueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7dd3fc" />
+      <stop offset="100%" stop-color="#0369a1" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#0284c7" flood-opacity="0.35" />
+    </filter>
+  </defs>
+
+  <!-- Background Base -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
+  <rect width="510" height="510" x="1" y="1" rx="111" fill="none" stroke="#0284c7" stroke-width="2" stroke-opacity="0.4" />
+
+  <!-- Outer Glow Ring -->
+  <circle cx="256" cy="256" r="190" fill="none" stroke="url(#blueGrad)" stroke-width="3" stroke-opacity="0.25" stroke-dasharray="8 8" />
+
+  <!-- Main Chat Bubble / Shield Geometry -->
+  <g filter="url(#shadow)">
+    <!-- Chat Bubble Shell -->
+    <path d="M256 96 C167.63 96 96 167.63 96 256 C96 288.75 105.88 319.22 122.95 344.69 L104 416 L178.68 396.95 C202.43 410.84 228.32 416 256 416 C344.37 416 416 344.37 416 256 C416 167.63 344.37 96 256 96 Z" 
+          fill="url(#blueGrad)" />
+
+    <!-- Inner Shield / Encrypted Anonymity Motif -->
+    <path d="M256 165 C220 185 180 185 180 185 V270 C180 325 215 355 256 370 C297 355 332 325 332 270 V185 C332 185 292 185 256 165 Z" 
+          fill="#0b141a" />
+
+    <!-- Lock Keyhole and Shackle / Anonymous Incognito Eyes -->
+    <rect x="238" y="240" width="36" height="50" rx="10" fill="url(#accentGrad)" />
+    <path d="M243 240 V225 C243 217.82 248.82 212 256 212 C263.18 212 269 217.82 269 225 V240" 
+          fill="none" stroke="url(#accentGrad)" stroke-width="6" stroke-linecap="round" />
+    <circle cx="256" cy="258" r="4.5" fill="#0b141a" />
+    <path d="M256 262.5 V276" stroke="#0b141a" stroke-width="4" stroke-linecap="round" />
+  </g>
+</svg>

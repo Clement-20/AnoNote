@@ -40,10 +40,10 @@ export const StatusModal: React.FC<StatusModalProps> = ({
         {/* Header */}
         <div className="p-4 bg-[#202c33] flex items-center justify-between border-b border-[#222d34]">
           <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-[#00a884]" />
+            <Sparkles className="w-5 h-5 text-[#00a8fc]" />
             Anonymous Status Stories
           </h2>
-          <button onClick={onClose} className="p-2 hover:bg-[#374248] rounded-full text-[#8696a0] hover:text-white">
+          <button onClick={onClose} className="p-2 hover:bg-[#374248] rounded-full text-[#8696a0] hover:text-white transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -59,24 +59,28 @@ export const StatusModal: React.FC<StatusModalProps> = ({
                     type="text"
                     value={caption}
                     onChange={(e) => setCaption(e.target.value)}
-                    placeholder="Add a caption..."
-                    className="w-full bg-transparent text-white placeholder-gray-300 text-sm focus:outline-none"
-                    maxLength={100}
+                    placeholder="Add an encrypted caption..."
+                    className="w-full px-4 py-2.5 bg-[#202c33]/90 rounded-xl text-sm text-white placeholder-[#8696a0] focus:outline-none border border-transparent focus:border-[#00a8fc]"
                   />
                 </div>
               </div>
 
-              <div className="flex gap-2">
-                {SAMPLE_STATUS_IMAGES.map((img, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => setSelectedImage(img)}
-                    className={`w-16 h-16 rounded-xl overflow-hidden border-2 ${selectedImage === img ? 'border-[#00a884]' : 'border-transparent opacity-60'}`}
-                  >
-                    <img src={img} alt="thumb" className="w-full h-full object-cover" />
-                  </button>
-                ))}
+              <div>
+                <label className="block text-xs font-medium text-[#8696a0] uppercase tracking-wider mb-2">
+                  Select Visual Theme
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {SAMPLE_STATUS_IMAGES.map((img, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setSelectedImage(img)}
+                      className={`h-16 rounded-xl overflow-hidden border-2 transition-all ${selectedImage === img ? 'border-[#00a8fc] scale-102' : 'border-transparent opacity-60'}`}
+                    >
+                      <img src={img} alt="thumb" className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -84,71 +88,69 @@ export const StatusModal: React.FC<StatusModalProps> = ({
               <button
                 type="button"
                 onClick={() => setIsCreating(false)}
-                className="flex-1 py-3 bg-[#2a3942] hover:bg-[#374248] text-white font-semibold rounded-xl text-sm"
+                className="flex-1 py-3 bg-[#2a3942] hover:bg-[#374248] text-white font-medium rounded-xl text-sm transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="flex-1 py-3 bg-[#00a884] hover:bg-[#008f72] text-[#111b21] font-bold rounded-xl text-sm"
+                className="flex-1 py-3 bg-[#00a8fc] hover:bg-[#0284c7] text-[#0b141a] font-bold rounded-xl text-sm transition-colors"
               >
-                Share Status
+                Share Story (24h)
               </button>
             </div>
           </form>
         ) : (
-          <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-            {/* Story list */}
-            <div className="w-full md:w-1/3 border-r border-[#222d34] p-4 overflow-y-auto space-y-3">
-              <button
-                onClick={() => setIsCreating(true)}
-                className="w-full p-3 bg-[#202c33] hover:bg-[#2a3942] rounded-xl flex items-center gap-3 transition-colors border border-[#00a884]/30"
-              >
-                <div className="w-10 h-10 rounded-full bg-[#00a884]/20 text-[#00a884] flex items-center justify-center">
-                  <Plus className="w-5 h-5" />
+          <div className="flex-1 flex flex-col p-6 overflow-hidden">
+            {activeStory ? (
+              <div className="flex-1 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-3 mb-4">
+                    <img src={activeStory.userAvatar} alt="user" className="w-10 h-10 rounded-full object-cover border-2 border-[#00a8fc]" />
+                    <div>
+                      <h4 className="text-sm font-bold text-white">{activeStory.userName}</h4>
+                      <p className="text-[11px] text-[#8696a0]">{new Date(activeStory.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • 24h Ephemeral</p>
+                    </div>
+                  </div>
+                  <div className="relative h-72 rounded-2xl overflow-hidden border border-[#222d34] shadow-xl">
+                    <img src={activeStory.mediaUrl} alt="Story" className="w-full h-full object-cover" />
+                    <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/90 via-black/40 to-transparent">
+                      <p className="text-sm font-medium text-white">{activeStory.caption}</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="text-left">
-                  <h4 className="text-sm font-semibold text-white">Add Status</h4>
-                  <p className="text-xs text-[#8696a0]">Share update for 24h</p>
-                </div>
-              </button>
 
-              <div className="space-y-2 mt-2">
-                {statuses.map(st => (
-                  <div
-                    key={st.id}
-                    onClick={() => setActiveStory(st)}
-                    className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-colors ${activeStory?.id === st.id ? 'bg-[#2a3942]' : 'hover:bg-[#202c33]'}`}
+                <div className="mt-4 flex gap-2 overflow-x-auto py-2">
+                  {statuses.map(st => (
+                    <button
+                      key={st.id}
+                      onClick={() => setActiveStory(st)}
+                      className={`h-12 w-12 rounded-xl overflow-hidden shrink-0 border-2 transition-all ${activeStory?.id === st.id ? 'border-[#00a8fc] scale-105' : 'border-transparent opacity-60'}`}
+                    >
+                      <img src={st.mediaUrl} alt="thumb" className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setIsCreating(true)}
+                    className="h-12 w-12 rounded-xl bg-[#202c33] border border-dashed border-[#00a8fc]/50 hover:border-[#00a8fc] text-[#00a8fc] flex items-center justify-center shrink-0 transition-colors"
+                    title="Add new story"
                   >
-                    <div className="w-12 h-12 rounded-full p-0.5 bg-gradient-to-tr from-[#00a884] to-[#005c4b]">
-                      <img src={st.userAvatar} alt={st.userName} className="w-full h-full rounded-full object-cover border-2 border-[#111b21]" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-sm font-semibold text-white truncate">{st.userName}</h4>
-                      <p className="text-xs text-[#8696a0] truncate">{st.caption || 'Status update'}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Active Story Viewer */}
-            <div className="flex-1 bg-[#0b141a] flex flex-col items-center justify-center p-6 relative">
-              {activeStory ? (
-                <div className="w-full max-w-sm h-[400px] rounded-2xl overflow-hidden relative border border-[#222d34] shadow-2xl">
-                  <img src={activeStory.mediaUrl} alt="Story" className="w-full h-full object-cover" />
-                  <div className="absolute top-4 left-4 right-4 flex items-center gap-3 bg-black/40 backdrop-blur-md p-2.5 rounded-xl">
-                    <img src={activeStory.userAvatar} alt="user" className="w-8 h-8 rounded-full object-cover" />
-                    <span className="text-sm font-semibold text-white">{activeStory.userName}</span>
-                  </div>
-                  <div className="absolute bottom-4 left-4 right-4 bg-black/60 backdrop-blur-md p-3 rounded-xl">
-                    <p className="text-xs text-white text-center">{activeStory.caption}</p>
-                  </div>
+                    <Plus className="w-5 h-5" />
+                  </button>
                 </div>
-              ) : (
-                <p className="text-sm text-[#8696a0]">Select a status story to view</p>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center text-center">
+                <Sparkles className="w-12 h-12 text-[#8696a0] mb-3 opacity-30" />
+                <p className="text-sm text-[#8696a0] mb-4">No active status stories</p>
+                <button
+                  onClick={() => setIsCreating(true)}
+                  className="px-5 py-2.5 bg-[#00a8fc] hover:bg-[#0284c7] text-[#0b141a] font-bold rounded-xl text-xs transition-colors"
+                >
+                  Create Story
+                </button>
+              </div>
+            )}
           </div>
         )}
 

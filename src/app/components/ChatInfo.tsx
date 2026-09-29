@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import {
   ArrowLeft,
@@ -12,247 +12,216 @@ import {
   Palette,
   Ban,
   Flag,
+  Share2,
+  Copy,
+  Check,
+  Shield,
+  Phone,
+  Video,
 } from "lucide-react";
 import { DisappearingMessagesModal } from "./DisappearingMessagesModal";
 import { WallpaperModal } from "./WallpaperModal";
 import { BlockReportModal } from "./BlockReportModal";
 import { VerifiedBadge } from "./VerifiedBadge";
-
-const chatDetails: Record<string, any> = {
-  "1": { name: "Anon #3847", avatar: "👤", about: "Hey there! I'm on anoNote" },
-  "2": { name: "Anon #7291", avatar: "🕶️", about: "Living in the shadows" },
-  "3": { name: "Anon #5612", avatar: "🎭", about: "Anonymous and free" },
-  "4": { name: "Anon #9204", avatar: "👤", about: "End-to-end encrypted" },
-};
+import { useAuth } from "../context/AuthContext";
+import { subscribeToChatMetadata, subscribeToMessages } from "../services/chatService";
 
 export function ChatInfo() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { currentUser, getConnectUrl } = useAuth();
+  const currentId = id || "general";
 
-  const chat = (() => {
-    const currentId = id || "1";
-    try {
-      const savedChats = JSON.parse(localStorage.getItem("anonote_chats") || "[]");
-      const found = savedChats.find((c: any) => c.id === currentId || c.name === currentId);
-      if (found) {
-        return {
-          name: found.name,
-          avatar: found.avatar || "👤",
-          about: found.about || "End-to-end encrypted direct anonymous peer",
-          isVerified: !!found.isVerified,
-        };
-      }
-      const savedContacts = JSON.parse(localStorage.getItem("anonote_contacts") || "[]");
-      const foundContact = savedContacts.find((c: any) => c.id === currentId || c.name === currentId);
-      if (foundContact) {
-        return {
-          name: foundContact.name,
-          avatar: foundContact.avatar || "👤",
-          about: foundContact.about || "anoNote anonymous contact",
-          isVerified: !!foundContact.isVerified,
-        };
-      }
-    } catch (e) {
-      console.error(e);
-    }
-
-    if (chatDetails[currentId]) {
-      return chatDetails[currentId];
-    }
-
-    if (currentId.startsWith("Anon")) {
-      return {
-        name: currentId,
-        avatar: "👤",
-        about: "anoNote anonymous contact",
-        isVerified: false,
-      };
-    }
-
-    return {
-      name: `Anon #${currentId.replace(/[^0-9a-zA-Z]/g, "") || currentId}`,
-      avatar: "👤",
-      about: "anoNote anonymous contact",
-      isVerified: false,
-    };
-  })();
+  const [liveChatDoc, setLiveChatDoc] = useState<any>(null);
+  const [mediaCount, setMediaCount] = useState(0);
+  const [copiedLink, setCopiedLink] = useState(false);
   const [disappearingSetting, setDisappearingSetting] = useState("off");
   const [showDisappearingModal, setShowDisappearingModal] = useState(false);
   const [showWallpaperModal, setShowWallpaperModal] = useState(false);
-  const [wallpaper, setWallpaper] = useState("bg-[#0a0a0a]");
-  const [blockReportType, setBlockReportType] = useState<'block' | 'report' | null>(null);
+  const [wallpaper, setWallpaper] = useState("bg-[#0b141a]");
+  const [blockReportType, setBlockReportType] = useState<"block" | "report" | null>(null);
 
-  const getSettingLabel = (val: string) => {
-    switch (val) {
-      case "24h": return "24 hours";
-      case "7d": return "7 days";
-      case "90d": return "90 days";
-      default: return "Off";
-    }
+  useEffect(() => {
+    const unsubMeta = subscribeToChatMetadata(currentId, (data) => {
+      setLiveChatDoc(data);
+    });
+    const unsubMsgs = subscribeToMessages(currentId, (msgs) => {
+      const media = msgs.filter((m) => !!m.mediaUrl);
+      setMediaCount(media.length);
+    });
+    return () => {
+      unsubMeta();
+      unsubMsgs();
+    };
+  }, [currentId]);
+
+  const otherParticipant = liveChatDoc?.participants?.find((p: string) => p !== currentUser.anonId);
+  const peerData = otherParticipant && liveChatDoc?.participantData?.[otherParticipant];
+  const peerName = peerData?.name || otherParticipant || (currentId.startsWith("Anon") ? currentId : `Anon #${currentId.replace(/[^0-9]/g, "") || "4819"}`);
+  const peerAvatar = peerData?.avatar || "👤";
+  const isPeerVerified = !!peerData?.isVerified;
+
+  const handleCopyPeerLink = () => {
+    const link = getConnectUrl(otherParticipant || peerName);
+    navigator.clipboard.writeText(link);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#0a0a0a]">
+    <div className="flex flex-col h-screen bg-[#0b141a] text-[#e9edef] select-none overflow-y-auto pb-12 font-sans">
       {/* Header */}
-      <header className="bg-[#1c1c1e] px-4 py-3 flex items-center gap-3 border-b border-gray-800">
-        <button
-          onClick={() => navigate(`/chat/${id}`)}
-          className="text-purple-400 hover:text-purple-300 transition-colors"
-        >
-          <ArrowLeft className="w-6 h-6" />
-        </button>
-        <h2 className="text-white font-medium text-lg">Contact info</h2>
+      <header className="bg-[#111b21] px-4 py-3 flex items-center justify-between sticky top-0 z-20 border-b border-[#202c33]">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate(`/chat/${currentId}`)}
+            className="text-[#aebac1] hover:text-[#e9edef] p-1 -ml-1 rounded-full hover:bg-[#202c33] transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <h2 className="text-[#e9edef] font-medium text-[16px]">Contact info</h2>
+        </div>
       </header>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto">
-        {/* Profile section */}
-        <div className="bg-[#1c1c1e] flex flex-col items-center py-8 border-b border-gray-800">
-          <div className="w-32 h-32 rounded-full bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center text-6xl mb-4">
-            {chat.avatar}
-          </div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-white text-2xl font-medium">{chat.name}</h2>
-            {chat.isVerified && (
-              <VerifiedBadge size="md" userName={chat.name} />
-            )}
-          </div>
-          {chat.isVerified && (
-            <div className="mt-2.5 flex items-center gap-1.5 px-3 py-1 bg-purple-500/15 border border-purple-500/30 rounded-full text-xs text-purple-300 font-medium">
-              <VerifiedBadge size="xs" interactive={false} />
-              Cryptographically Verified Anon
-            </div>
-          )}
-          <p className="text-gray-400 text-sm mt-2">{chat.about}</p>
+      {/* Main Profile Card */}
+      <div className="flex flex-col items-center py-6 border-b border-[#202c33] bg-[#111b21]">
+        <div className="w-28 h-28 rounded-full bg-[#202c33] flex items-center justify-center text-5xl mb-3 overflow-hidden border-2 border-[#202c33]">
+          {peerAvatar}
         </div>
-
-        {/* Media section */}
-        <div className="mt-4 bg-[#1c1c1e] border-b border-gray-800">
-          <div className="px-4 py-3 flex items-center justify-between">
-            <h3 className="text-white font-medium">Media, links and docs</h3>
-            <span className="text-gray-400 text-sm">12</span>
-          </div>
-          <div className="flex gap-2 px-4 pb-4">
-            <div className="flex-1 aspect-square bg-[#2c2c2e] rounded-lg flex items-center justify-center">
-              <ImageIcon className="w-8 h-8 text-gray-500" />
-            </div>
-            <div className="flex-1 aspect-square bg-[#2c2c2e] rounded-lg flex items-center justify-center">
-              <ImageIcon className="w-8 h-8 text-gray-500" />
-            </div>
-            <div className="flex-1 aspect-square bg-[#2c2c2e] rounded-lg flex items-center justify-center">
-              <ImageIcon className="w-8 h-8 text-gray-500" />
-            </div>
-          </div>
+        <div className="flex items-center gap-1.5 mb-1">
+          <h1 className="text-xl font-semibold text-[#e9edef]">{peerName}</h1>
+          {isPeerVerified && <VerifiedBadge size="sm" userName={peerName} />}
         </div>
+        <p className="text-sm font-mono text-[#38bdf8] mb-4">{otherParticipant || peerName}</p>
 
-        {/* Options */}
-        <div className="mt-4 bg-[#1c1c1e] border-b border-gray-800">
-          <InfoOption icon={Bell} title="Mute notifications" />
-          <InfoOption icon={Search} title="Search in conversation" />
-          <div onClick={() => setShowWallpaperModal(true)}>
-            <InfoOption icon={Palette} title="Wallpaper" subtitle="Custom chat background" />
-          </div>
-          <div onClick={() => setShowDisappearingModal(true)}>
-            <InfoOption
-              icon={Clock}
-              title="Disappearing messages"
-              subtitle={getSettingLabel(disappearingSetting)}
-            />
-          </div>
-        </div>
-
-        {/* Encryption info */}
-        <div className="mt-4 bg-[#1c1c1e] px-4 py-4 border-b border-gray-800">
-          <div className="flex items-start gap-3">
-            <Lock className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
-            <div className="flex-1">
-              <p className="text-sm text-gray-400 leading-relaxed">
-                Messages are end-to-end encrypted with zero-knowledge protocols. Your identity remains
-                anonymous on anoNote. No one outside of this chat can read or listen to
-                them.
-              </p>
+        {/* Quick Call & Share Buttons */}
+        <div className="flex items-center gap-6">
+          <button
+            onClick={() => navigate(`/call/${currentId}?video=true`)}
+            className="flex flex-col items-center gap-1 text-[#38bdf8] hover:text-[#0084ff]"
+          >
+            <div className="w-10 h-10 rounded-full bg-[#202c33] flex items-center justify-center">
+              <Video className="w-5 h-5" />
             </div>
-          </div>
-        </div>
+            <span className="text-xs">Video</span>
+          </button>
 
-        {/* Danger zone / Block & Report */}
-        <div className="mt-4 bg-[#1c1c1e] border-b border-gray-800">
-          <div onClick={() => setBlockReportType('block')}>
-            <InfoOption
-              icon={Ban}
-              title={`Block ${chat.name}`}
-              subtitle="Stop receiving messages & calls"
-              textColor="text-red-400"
-            />
-          </div>
-          <div onClick={() => setBlockReportType('report')}>
-            <InfoOption
-              icon={Flag}
-              title={`Report ${chat.name}`}
-              subtitle="Submit security & safety report"
-              textColor="text-red-400"
-            />
-          </div>
-          <InfoOption
-            icon={Trash2}
-            title="Delete chat"
-            textColor="text-red-400"
-          />
+          <button
+            onClick={() => navigate(`/call/${currentId}`)}
+            className="flex flex-col items-center gap-1 text-[#38bdf8] hover:text-[#0084ff]"
+          >
+            <div className="w-10 h-10 rounded-full bg-[#202c33] flex items-center justify-center">
+              <Phone className="w-5 h-5" />
+            </div>
+            <span className="text-xs">Audio</span>
+          </button>
+
+          <button
+            onClick={handleCopyPeerLink}
+            className="flex flex-col items-center gap-1 text-[#38bdf8] hover:text-[#0084ff]"
+          >
+            <div className="w-10 h-10 rounded-full bg-[#202c33] flex items-center justify-center">
+              {copiedLink ? <Check className="w-5 h-5" /> : <Share2 className="w-5 h-5" />}
+            </div>
+            <span className="text-xs">{copiedLink ? "Copied" : "Share"}</span>
+          </button>
         </div>
       </div>
 
-      {showDisappearingModal && (
-        <DisappearingMessagesModal
-          currentSetting={disappearingSetting}
-          onSelect={(opt) => setDisappearingSetting(opt)}
-          onClose={() => setShowDisappearingModal(false)}
-        />
-      )}
-
-      {showWallpaperModal && (
-        <WallpaperModal
-          currentWallpaper={wallpaper}
-          onSelect={(wp) => setWallpaper(wp)}
-          onClose={() => setShowWallpaperModal(false)}
-        />
-      )}
-
-      {blockReportType && (
-        <BlockReportModal
-          type={blockReportType}
-          userName={chat.name}
-          onConfirm={() => {
-            if (blockReportType === 'block') {
-              navigate("/");
-            }
-          }}
-          onClose={() => setBlockReportType(null)}
-        />
-      )}
-    </div>
-  );
-}
-
-interface InfoOptionProps {
-  icon: any;
-  title: string;
-  subtitle?: string;
-  textColor?: string;
-}
-
-function InfoOption({
-  icon: Icon,
-  title,
-  subtitle,
-  textColor = "text-white",
-}: InfoOptionProps) {
-  return (
-    <div className="flex items-center gap-3 px-4 py-3 hover:bg-[#2c2c2e] border-b border-gray-800 last:border-b-0 transition-colors cursor-pointer">
-      <Icon className={`w-5 h-5 ${textColor} flex-shrink-0`} />
-      <div className="flex-1">
-        <h3 className={`font-medium ${textColor}`}>{title}</h3>
-        {subtitle && <p className="text-sm text-gray-400">{subtitle}</p>}
+      {/* About section */}
+      <div className="px-4 py-3 bg-[#111b21] border-b border-[#202c33] mt-2">
+        <p className="text-xs text-[#8696a0] mb-0.5 font-medium">About</p>
+        <p className="text-sm text-[#e9edef]">Available on AnoNote</p>
       </div>
+
+      {/* Media Count Row */}
+      <div className="px-4 py-3.5 bg-[#111b21] border-b border-[#202c33] mt-2 flex items-center justify-between hover:bg-[#202c33]/40 transition-colors cursor-pointer">
+        <div className="flex items-center gap-3.5">
+          <ImageIcon className="w-5 h-5 text-[#8696a0]" />
+          <span className="text-[15px] font-medium text-[#e9edef]">Media, links, and docs</span>
+        </div>
+        <span className="text-xs text-[#8696a0] font-medium">{mediaCount} items</span>
+      </div>
+
+      {/* Security & Settings List */}
+      <div className="bg-[#111b21] border-b border-[#202c33] mt-2 divide-y divide-[#202c33]/40">
+        <div
+          onClick={() => setShowDisappearingModal(true)}
+          className="flex items-center justify-between px-4 py-3.5 hover:bg-[#202c33]/40 cursor-pointer"
+        >
+          <div className="flex items-center gap-3.5">
+            <Clock className="w-5 h-5 text-[#8696a0]" />
+            <div>
+              <p className="text-[15px] font-medium text-[#e9edef]">Disappearing messages</p>
+              <p className="text-xs text-[#8696a0]">{disappearingSetting === "off" ? "Off" : disappearingSetting}</p>
+            </div>
+          </div>
+        </div>
+
+        <div
+          onClick={() => setShowWallpaperModal(true)}
+          className="flex items-center justify-between px-4 py-3.5 hover:bg-[#202c33]/40 cursor-pointer"
+        >
+          <div className="flex items-center gap-3.5">
+            <Palette className="w-5 h-5 text-[#8696a0]" />
+            <span className="text-[15px] font-medium text-[#e9edef]">Chat wallpaper</span>
+          </div>
+        </div>
+
+        <div className="px-4 py-3.5 flex items-start gap-3.5">
+          <Lock className="w-5 h-5 text-[#8696a0] mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="text-[15px] font-medium text-[#e9edef]">Encryption</p>
+            <p className="text-xs text-[#8696a0] leading-relaxed">
+              Messages and calls are end-to-end encrypted. No one outside of this chat can read or listen to them.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Danger Zone */}
+      <div className="bg-[#111b21] border-b border-[#202c33] mt-2 divide-y divide-[#202c33]/40">
+        <div
+          onClick={() => setBlockReportType("block")}
+          className="px-4 py-3.5 flex items-center gap-3.5 hover:bg-[#202c33]/40 cursor-pointer text-[#f15c6d]"
+        >
+          <Ban className="w-5 h-5" />
+          <span className="text-[15px] font-medium">Block {peerName}</span>
+        </div>
+        <div
+          onClick={() => setBlockReportType("report")}
+          className="px-4 py-3.5 flex items-center gap-3.5 hover:bg-[#202c33]/40 cursor-pointer text-[#f15c6d]"
+        >
+          <Flag className="w-5 h-5" />
+          <span className="text-[15px] font-medium">Report {peerName}</span>
+        </div>
+      </div>
+
+      <DisappearingMessagesModal
+        isOpen={showDisappearingModal}
+        onClose={() => setShowDisappearingModal(false)}
+        currentSetting={disappearingSetting}
+        onSave={(s) => setDisappearingSetting(s)}
+      />
+
+      <WallpaperModal
+        isOpen={showWallpaperModal}
+        onClose={() => setShowWallpaperModal(false)}
+        currentWallpaper={wallpaper}
+        onSelect={(w) => setWallpaper(w)}
+        onSelectWallpaper={(w) => setWallpaper(w)}
+      />
+
+      <BlockReportModal
+        isOpen={blockReportType !== null}
+        type={blockReportType || "block"}
+        userName={peerName}
+        onClose={() => setBlockReportType(null)}
+        onConfirm={() => {
+          setBlockReportType(null);
+          navigate("/");
+        }}
+      />
     </div>
   );
 }

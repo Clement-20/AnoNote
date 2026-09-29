@@ -12,10 +12,7 @@ import {
   CheckCheck, 
   Lock,
   Play,
-  Pause,
-  Image as ImageIcon,
-  FileText,
-  X
+  Image as ImageIcon
 } from 'lucide-react';
 import { Chat, Message, User } from '../types';
 
@@ -42,7 +39,6 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const [showAttachments, setShowAttachments] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
-  const [recordingSeconds, setRecordingSeconds] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const partner = chat.isGroup
@@ -82,21 +78,21 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     <div className="flex-1 flex flex-col h-full bg-[#0b141a] text-[#e9edef] relative overflow-hidden">
       
       {/* Background wallpaper subtle pattern */}
-      <div className="absolute inset-0 opacity-5 pointer-events-none bg-[radial-gradient(#00a884_1px,transparent_1px)] [background-size:16px_16px]" />
+      <div className="absolute inset-0 opacity-5 pointer-events-none bg-[radial-gradient(#00a8fc_1px,transparent_1px)] [background-size:16px_16px]" />
 
       {/* Chat Header */}
       <div className="h-16 px-4 bg-[#202c33] flex items-center justify-between border-b border-[#222d34] z-10">
         <div className="flex items-center gap-3 cursor-pointer" onClick={onOpenSecurityBadge}>
           <div className="relative">
-            <img src={partner?.avatar} alt={partner?.name} className="w-10 h-10 rounded-full object-cover" />
+            <img src={partner?.avatar} alt={partner?.name} className="w-10 h-10 rounded-full object-cover border border-[#00a8fc]/50" />
             {partner?.online && (
-              <span className="absolute bottom-0 right-0 w-3 h-3 bg-[#00a884] border-2 border-[#202c33] rounded-full" />
+              <span className="absolute bottom-0 right-0 w-3 h-3 bg-[#00a8fc] border-2 border-[#202c33] rounded-full" />
             )}
           </div>
           <div>
             <h3 className="text-sm font-semibold text-white flex items-center gap-1.5">
               {partner?.name}
-              <ShieldCheck className="w-4 h-4 text-[#00a884]" title="End-to-End Encrypted" />
+              <ShieldCheck className="w-4 h-4 text-[#00a8fc]" title="End-to-End Encrypted" />
             </h3>
             <p className="text-[11px] font-mono text-[#8696a0]">
               {partner?.anonId} {partner?.online ? '• Online' : '• Offline'}
@@ -107,14 +103,14 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         <div className="flex items-center gap-1 text-[#aebac1]">
           <button 
             onClick={() => onStartCall('voice')}
-            className="p-2.5 hover:bg-[#374248] rounded-full transition-colors text-[#00a884]"
+            className="p-2.5 hover:bg-[#374248] rounded-full transition-colors text-[#00a8fc]"
             title="Secure Voice Call"
           >
             <Phone className="w-5 h-5" />
           </button>
           <button 
             onClick={() => onStartCall('video')}
-            className="p-2.5 hover:bg-[#374248] rounded-full transition-colors text-[#00a884]"
+            className="p-2.5 hover:bg-[#374248] rounded-full transition-colors text-[#00a8fc]"
             title="Secure Video Call"
           >
             <Video className="w-5 h-5" />
@@ -124,15 +120,15 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             className="p-2.5 hover:bg-[#374248] rounded-full transition-colors"
             title="Encryption Info"
           >
-            <Lock className="w-5 h-5 text-[#00a884]" />
+            <Lock className="w-5 h-5 text-[#00a8fc]" />
           </button>
         </div>
       </div>
 
       {/* E2EE Banner */}
       <div className="bg-[#182229] border-b border-[#222d34] px-4 py-2 text-center text-xs text-[#8696a0] flex items-center justify-center gap-2 z-10 shadow-sm">
-        <Lock className="w-3.5 h-3.5 text-[#00a884]" />
-        <span>Messages and calls are end-to-end encrypted. No one outside of this chat can read or listen to them.</span>
+        <Lock className="w-3.5 h-3.5 text-[#00a8fc]" />
+        <span>Messages and calls are end-to-end encrypted. No one outside this chat can read or listen to them.</span>
       </div>
 
       {/* Message List */}
@@ -146,10 +142,10 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
             >
               <div 
-                className={`max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-2.5 shadow-md relative group ${isMe ? 'bg-[#005c4b] text-[#e9edef] rounded-tr-none' : 'bg-[#202c33] text-[#e9edef] rounded-tl-none'}`}
+                className={`max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-2.5 shadow-md relative group ${isMe ? 'bg-[#0284c7] text-[#ffffff] rounded-tr-none' : 'bg-[#202c33] text-[#e9edef] rounded-tl-none'}`}
               >
                 {!isMe && chat.isGroup && (
-                  <p className="text-[11px] font-bold text-[#00a884] mb-1">{msg.senderName}</p>
+                  <p className="text-[11px] font-bold text-[#00a8fc] mb-1">{msg.senderName}</p>
                 )}
 
                 {/* Media Image */}
@@ -162,14 +158,14 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                 {/* Audio Voice Note */}
                 {msg.mediaType === 'audio' && (
                   <div className="flex items-center gap-3 py-1 min-w-[200px]">
-                    <button className="w-9 h-9 rounded-full bg-[#00a884] text-[#111b21] flex items-center justify-center shadow">
+                    <button className="w-9 h-9 rounded-full bg-[#00a8fc] text-[#0b141a] flex items-center justify-center shadow">
                       <Play className="w-4 h-4 ml-0.5" />
                     </button>
                     <div className="flex-1">
-                      <div className="h-2 bg-[#2a3942] rounded-full overflow-hidden">
-                        <div className="w-3/4 h-full bg-[#00a884]" />
+                      <div className="h-2 bg-black/20 rounded-full overflow-hidden">
+                        <div className="w-3/4 h-full bg-white" />
                       </div>
-                      <span className="text-[10px] text-[#8696a0] mt-1 block">0:14 • Encrypted Voice Note</span>
+                      <span className={`text-[10px] ${isMe ? 'text-blue-100' : 'text-[#8696a0]'} mt-1 block`}>0:14 • Encrypted Voice Note</span>
                     </div>
                   </div>
                 )}
@@ -178,10 +174,10 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                 <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.text}</p>
 
                 {/* Timestamp & Ticks */}
-                <div className="flex items-center justify-end gap-1 mt-1 text-[10px] text-[#8696a0]">
-                  {msg.isEncrypted && <Lock className="w-2.5 h-2.5 text-[#00a884]" />}
+                <div className={`flex items-center justify-end gap-1 mt-1 text-[10px] ${isMe ? 'text-blue-100' : 'text-[#8696a0]'}`}>
+                  {msg.isEncrypted && <Lock className="w-2.5 h-2.5" />}
                   <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                  {isMe && <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" />}
+                  {isMe && <CheckCheck className="w-3.5 h-3.5 text-white" />}
                 </div>
               </div>
             </div>
@@ -207,14 +203,14 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               onClick={handleSendSampleImage}
               className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-[#111b21] text-sm text-white text-left transition-colors"
             >
-              <ImageIcon className="w-4 h-4 text-[#00a884]" />
-              <span>Photos & Images</span>
+              <ImageIcon className="w-4 h-4 text-[#00a8fc]" />
+              <span>Photos &amp; Images</span>
             </button>
             <button
               onClick={() => { handleSendVoiceNote(); setShowAttachments(false); }}
               className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-[#111b21] text-sm text-white text-left transition-colors"
             >
-              <Mic className="w-4 h-4 text-[#00a884]" />
+              <Mic className="w-4 h-4 text-[#00a8fc]" />
               <span>Voice Note</span>
             </button>
           </div>
@@ -256,12 +252,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="Type an encrypted message..."
-            className="flex-1 py-3 px-4 bg-[#2a3942] rounded-xl text-sm text-white placeholder-[#8696a0] focus:outline-none border border-transparent focus:border-[#00a884]/40"
+            className="flex-1 py-3 px-4 bg-[#2a3942] rounded-xl text-sm text-white placeholder-[#8696a0] focus:outline-none border border-transparent focus:border-[#00a8fc]/40"
           />
           {text.trim() ? (
             <button
               type="submit"
-              className="p-3 bg-[#00a884] hover:bg-[#008f72] text-[#111b21] rounded-xl transition-colors shadow-lg"
+              className="p-3 bg-[#00a8fc] hover:bg-[#0284c7] text-[#0b141a] rounded-xl transition-colors shadow-lg font-bold"
             >
               <Send className="w-5 h-5" />
             </button>
@@ -269,7 +265,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             <button
               type="button"
               onClick={handleSendVoiceNote}
-              className="p-3 bg-[#2a3942] hover:bg-[#374248] text-[#00a884] rounded-xl transition-colors"
+              className="p-3 bg-[#2a3942] hover:bg-[#374248] text-[#00a8fc] rounded-xl transition-colors"
               title="Send Voice Note"
             >
               <Mic className="w-5 h-5" />
