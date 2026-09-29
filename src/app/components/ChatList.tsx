@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useSearchParams, useParams } from "react-router";
 import {
   Search,
@@ -32,6 +32,43 @@ import {
   FirestoreChat,
 } from "../services/chatService";
 
+// Synthesize a gorgeous high-fidelity double-beep notification sound
+function playNotificationSound() {
+  try {
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    
+    // First note
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = "sine";
+    osc1.frequency.setValueAtTime(650, ctx.currentTime);
+    gain1.gain.setValueAtTime(0.08, ctx.currentTime);
+    gain1.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.start();
+    osc1.stop(ctx.currentTime + 0.15);
+
+    // Second note shortly after
+    setTimeout(() => {
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = "sine";
+      osc2.frequency.setValueAtTime(880, ctx.currentTime);
+      gain2.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.start();
+      osc2.stop(ctx.currentTime + 0.25);
+    }, 80);
+  } catch (e) {
+    // Audio context may be suspended/blocked by browser autoplay policy
+  }
+}
+
 export function ChatList() {
   const navigate = useNavigate();
   const { id: currentOpenChatId } = useParams();
@@ -45,6 +82,18 @@ export function ChatList() {
   const [activeFilter, setActiveFilter] = useState<"all" | "unread" | "groups">("all");
   const [isOnline, setIsOnline] = useState(() => (typeof navigator !== "undefined" ? navigator.onLine : true));
   const [draftsMap, setDraftsMap] = useState<Record<string, string>>({});
+
+  const [inAppToast, setInAppToast] = useState<{ title: string; body: string; chatId?: string } | null>(null);
+  const lastProcessedTimestampsRef = useRef<Record<string, string>>({});
+  const isFirstLoadRef = useRef(true);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission === "default") {
+        Notification.requestPermission();
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -87,6 +136,69 @@ export function ChatList() {
 
   useEffect(() => {
     const unsubscribe = subscribeToUserChats(currentUser.anonId, (chats) => {
+      // Trace new messages for notifications
+      if (chats.length > 0) {
+        if (!isFirstLoadRef.current) {
+          chats.forEach((c) => {
+            const lastStamp = c.lastMessageTimestamp;
+            const prevStamp = lastProcessedTimestampsRef.current[c.id];
+            
+            // Trigger notification if there is a new message from a peer (not us and not system)
+            if (
+              lastStamp &&
+              lastStamp !== prevStamp &&
+              c.lastSenderId &&
+              c.lastSenderId !== currentUser.anonId &&
+              c.lastSenderId !== "system"
+            ) {
+              const peerName = c.isGroup
+                ? c.groupName || "Encrypted Group"
+                : (c.participantData?.[c.lastSenderId]?.name || `Anon #${c.lastSenderId.substring(0, 5)}`);
+              
+              const secureBody = c.lastMessage || "New message received";
+              const secureTitle = c.isGroup ? `💬 Group Alert: ${peerName}` : `💬 Message from ${peerName}`;
+
+              // Trigger HTML5 and Audio notification if this chat is not currently open
+              if (currentOpenChatId !== c.id) {
+                // Play audio + show browser Push Notification + in-app Toast
+                playNotificationSound();
+
+                if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+                  try {
+                    const notif = new Notification(secureTitle, {
+                      body: secureBody,
+                      icon: "🛡️",
+                      tag: c.id,
+                      silent: true,
+                    });
+                    notif.onclick = () => {
+                      window.focus();
+                      navigate(`/chat/${c.id}`);
+                    };
+                  } catch (err) {
+                    console.warn(err);
+                  }
+                }
+
+                // Trigger floating top toast inside app viewport
+                setInAppToast({ title: secureTitle, body: secureBody, chatId: c.id });
+                setTimeout(() => {
+                  setInAppToast(null);
+                }, 4000);
+              }
+            }
+          });
+        }
+
+        // Always save last timestamps
+        chats.forEach((c) => {
+          if (c.lastMessageTimestamp) {
+            lastProcessedTimestampsRef.current[c.id] = c.lastMessageTimestamp;
+          }
+        });
+        isFirstLoadRef.current = false;
+      }
+
       setFirestoreChats(chats);
       localStorage.setItem("anonote_chats_cache", JSON.stringify(chats));
 
@@ -98,7 +210,7 @@ export function ChatList() {
       });
     });
     return () => unsubscribe();
-  }, [currentUser.anonId]);
+  }, [currentUser.anonId, currentOpenChatId, navigate]);
 
   useEffect(() => {
     const unsub = subscribeToActiveUsers(currentUser.anonId, (users) => {
@@ -206,6 +318,36 @@ export function ChatList() {
 
   return (
     <div className="flex flex-col h-full bg-[#0b141a] text-[#e9edef] select-none relative">
+      {/* Real-time In-App Floating Toast Push Notification */}
+      {inAppToast && (
+        <div
+          onClick={() => {
+            if (inAppToast.chatId) {
+              navigate(`/chat/${inAppToast.chatId}`);
+            }
+            setInAppToast(null);
+          }}
+          className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-[#202c33] border border-[#0084ff]/30 rounded-xl px-4 py-3 shadow-2xl max-w-sm w-[90%] flex items-center gap-3 cursor-pointer animate-in slide-in-from-top duration-300 hover:bg-[#2a3942]"
+        >
+          <div className="w-9 h-9 rounded-full bg-[#0084ff]/15 flex items-center justify-center text-lg flex-shrink-0">
+            💬
+          </div>
+          <div className="flex-1 min-w-0">
+            <h4 className="text-[13px] font-bold text-[#38bdf8] truncate">{inAppToast.title}</h4>
+            <p className="text-[12px] text-[#e9edef] truncate">{inAppToast.body}</p>
+          </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setInAppToast(null);
+            }}
+            className="text-[#8696a0] hover:text-white p-1"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* AnoNote Clean Top App Bar */}
       <header className="px-4 py-3 bg-[#111b21] flex items-center justify-between z-30">
         <h1 className="text-[20px] font-semibold text-[#e9edef] tracking-tight">AnoNote</h1>
