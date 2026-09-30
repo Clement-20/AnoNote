@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { SmilePlus, Share2, Pin, Reply, Clock, CheckCheck, Check, X, Pencil, Trash2 } from "lucide-react";
 import { formatMessageWithTags } from "../utils/tagFormatter";
 
@@ -6,6 +6,7 @@ interface MessageBubbleProps {
   id: string;
   text: string;
   isSent: boolean;
+  senderAnonId?: string;
   timestamp: string;
   senderName?: string;
   currentUserAnonId?: string;
@@ -32,7 +33,8 @@ const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
 export function MessageBubble({
   id,
   text,
-  isSent,
+  isSent: isSentProp,
+  senderAnonId,
   timestamp,
   senderName,
   currentUserAnonId,
@@ -49,11 +51,79 @@ export function MessageBubble({
   onEdit,
   onDelete,
 }: MessageBubbleProps) {
+  const isSent = isSentProp || (!!senderAnonId && !!currentUserAnonId && senderAnonId === currentUserAnonId);
   const [showPicker, setShowPicker] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
 
+  // Long press mobile menu state
+  const [showMobileOptions, setShowMobileOptions] = useState(false);
+  const touchTimeoutRef = useRef<any>(null);
+
+  // Swipe to reply state
+  const [swipeTranslation, setSwipeTranslation] = useState(0);
+  const touchStartXRef = useRef<number | null>(null);
+  const isSwipingRef = useRef(false);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    // 1. Long press trigger setup
+    if (touchTimeoutRef.current) clearTimeout(touchTimeoutRef.current);
+    touchTimeoutRef.current = setTimeout(() => {
+      setShowMobileOptions(true);
+      if (typeof navigator !== "undefined" && navigator.vibrate) {
+        navigator.vibrate(55);
+      }
+    }, 550);
+
+    // 2. Swipe start setup
+    const touch = e.touches[0];
+    touchStartXRef.current = touch.clientX;
+    isSwipingRef.current = false;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartXRef.current === null) return;
+    const touch = e.touches[0];
+    const diffX = touch.clientX - touchStartXRef.current;
+
+    // If moved significantly, cancel long press
+    if (Math.abs(diffX) > 10) {
+      if (touchTimeoutRef.current) {
+        clearTimeout(touchTimeoutRef.current);
+        touchTimeoutRef.current = null;
+      }
+    }
+
+    // Swiping right (diffX > 0)
+    if (diffX > 0) {
+      isSwipingRef.current = true;
+      const translation = Math.min(diffX, 65);
+      setSwipeTranslation(translation);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (touchTimeoutRef.current) {
+      clearTimeout(touchTimeoutRef.current);
+      touchTimeoutRef.current = null;
+    }
+
+    if (isSwipingRef.current && swipeTranslation >= 45) {
+      if (onReply) {
+        onReply();
+        if (typeof navigator !== "undefined" && navigator.vibrate) {
+          navigator.vibrate(30);
+        }
+      }
+    }
+
+    setSwipeTranslation(0);
+    touchStartXRef.current = null;
+    isSwipingRef.current = false;
+  };
+
   return (
-    <div className={`flex ${isSent ? "justify-end" : "justify-start"} group relative mb-1.5`}>
+    <>
+      <div className={`flex ${isSent ? "justify-end" : "justify-start"} group relative mb-1.5`}>
       <div className="max-w-[85%] sm:max-w-[70%] relative">
         {/* Quick action toolbar on hover */}
         <div
@@ -143,10 +213,27 @@ export function MessageBubble({
           </div>
         )}
 
+        {/* Swipe Reply indicator */}
+        {swipeTranslation > 10 && (
+          <div
+            className="absolute left-[-35px] top-1/2 -translate-y-1/2 bg-[#0084ff]/25 text-[#38bdf8] p-1.5 rounded-full flex items-center justify-center animate-in zoom-in-50 duration-100 z-10"
+            style={{ opacity: Math.min(swipeTranslation / 45, 1) }}
+          >
+            <Reply className="w-3.5 h-3.5" />
+          </div>
+        )}
+
         {/* AnoNote Message Bubble Body */}
         <div
           onDoubleClick={onReply}
-          className={`relative px-3 pt-2 pb-1.5 select-text rounded-2xl ${
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          style={{
+            transform: `translate3d(${swipeTranslation}px, 0px, 0px)`,
+            transition: swipeTranslation === 0 ? "transform 0.2s cubic-bezier(0.1, 0.8, 0.25, 1)" : "none"
+          }}
+          className={`relative px-3 pt-2 pb-1.5 select-text rounded-2xl cursor-pointer ${
             isSent
               ? "bg-[#0b4d75] text-[#f0f9ff] rounded-tr-xs"
               : "bg-[#202c33] text-[#e9edef] rounded-tl-xs"
@@ -260,5 +347,108 @@ export function MessageBubble({
         </div>
       )}
     </div>
+
+    {/* Mobile Long Press Modal Overlay */}
+    {showMobileOptions && (
+      <div
+        className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-xs flex flex-col justify-end p-4 animate-in fade-in duration-150"
+        onClick={() => setShowMobileOptions(false)}
+      >
+        <div
+          className="w-full max-w-sm mx-auto bg-[#1f2c34] rounded-2xl p-4 space-y-4 shadow-2xl border border-[#2a3942] animate-in slide-in-from-bottom duration-200"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Quick Reactions Header */}
+          <div>
+            <p className="text-[11px] font-semibold text-[#8696a0] uppercase tracking-wider mb-2 px-1">Quick Reaction</p>
+            <div className="flex items-center justify-between bg-[#111b21] rounded-xl p-2">
+              {QUICK_REACTIONS.map((emoji) => (
+                <button
+                  key={emoji}
+                  onClick={() => {
+                    onReact?.(emoji);
+                    setShowMobileOptions(false);
+                  }}
+                  className="hover:scale-125 transition-transform text-2xl p-1.5 active:scale-90"
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Menu options list */}
+          <div className="divide-y divide-[#2a3942]/50 bg-[#111b21] rounded-xl overflow-hidden text-sm">
+            <button
+              onClick={() => {
+                onReply?.();
+                setShowMobileOptions(false);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3.5 text-left text-[#e9edef] hover:bg-[#202c33]/40 active:bg-[#202c33] transition-colors"
+            >
+              <Reply className="w-4 h-4 text-[#38bdf8]" />
+              <span>Reply</span>
+            </button>
+
+            <button
+              onClick={() => {
+                onForward?.();
+                setShowMobileOptions(false);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3.5 text-left text-[#e9edef] hover:bg-[#202c33]/40 active:bg-[#202c33] transition-colors"
+            >
+              <Share2 className="w-4 h-4 text-[#38bdf8]" />
+              <span>Forward Message</span>
+            </button>
+
+            <button
+              onClick={() => {
+                onPin?.();
+                setShowMobileOptions(false);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3.5 text-left text-[#e9edef] hover:bg-[#202c33]/40 active:bg-[#202c33] transition-colors"
+            >
+              <Pin className="w-4 h-4 text-[#38bdf8]" />
+              <span>Pin Message</span>
+            </button>
+
+            {isSent && !isPending && (
+              <>
+                <button
+                  onClick={() => {
+                    onEdit?.();
+                    setShowMobileOptions(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3.5 text-left text-amber-400 hover:bg-[#202c33]/40 active:bg-[#202c33] transition-colors font-medium"
+                >
+                  <Pencil className="w-4 h-4" />
+                  <span>Edit Message</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    onDelete?.();
+                    setShowMobileOptions(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3.5 text-left text-red-400 hover:bg-[#202c33]/40 active:bg-[#202c33] transition-colors font-medium"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Delete Message</span>
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Cancel Button */}
+          <button
+            onClick={() => setShowMobileOptions(false)}
+            className="w-full bg-[#202c33] hover:bg-[#2a3942] active:bg-[#202c33] text-[#e9edef] text-xs font-semibold py-3 rounded-xl transition-colors text-center"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    )}
+  </>
   );
 }

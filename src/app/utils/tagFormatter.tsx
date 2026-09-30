@@ -1,5 +1,6 @@
 import React from "react";
-import { Users, Radio, AtSign } from "lucide-react";
+import { Users, Radio, AtSign, Users2, ArrowUpRight } from "lucide-react";
+import { Link } from "react-router";
 
 /**
  * Parses message text and wraps @mentions and group tags in styled badges
@@ -12,13 +13,10 @@ export function formatMessageWithTags(
 ): React.ReactNode {
   if (!text) return "";
 
-  // Regex matches:
-  // 1. @all or @everyone
-  // 2. @online
-  // 3. @Anon\s*#?\d+ or @Anon_[a-zA-Z0-9_]+ or @[a-zA-Z0-9_#-]+
-  const mentionRegex = /(@all\b|@everyone\b|@online\b|@Anon\s*#\s*\d+|@Anon_\w+|@[a-zA-Z0-9_#-]+)/gi;
+  // Regex matches mentions and group URLs (http://.../group/... or /group/...)
+  const unifiedRegex = /(@all\b|@everyone\b|@online\b|@Anon\s*#\s*\d+|@Anon_\w+|@[a-zA-Z0-9_#-]+|https?:\/\/[^\s]+?\/group\/[a-zA-Z0-9_-]+|\/group\/[a-zA-Z0-9_-]+)/gi;
 
-  const parts = text.split(mentionRegex);
+  const parts = text.split(unifiedRegex);
   if (parts.length === 1) {
     return text;
   }
@@ -30,6 +28,27 @@ export function formatMessageWithTags(
     if (!part) return null;
 
     const lower = part.toLowerCase();
+
+    // Check if it's a group link (e.g., http://.../group/group_id or /group/group_id)
+    if (lower.includes("/group/")) {
+      const match = part.match(/\/group\/([a-zA-Z0-9_-]+)/i);
+      const groupId = match ? match[1] : "";
+      return (
+        <Link
+          key={index}
+          to={`/group/${groupId}`}
+          className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 mx-1 my-1 rounded-xl text-xs font-semibold border transition-all duration-150 shadow-xs hover:scale-[1.02] active:scale-95 ${
+            isSent
+              ? "bg-[#0c3a5e] border-[#38bdf8]/40 text-[#38bdf8] hover:bg-[#073854]"
+              : "bg-[#111b21] border-[#202c33] text-[#0084ff] hover:bg-[#1a262d] hover:border-[#2a3942]"
+          }`}
+        >
+          <Users2 className="w-3.5 h-3.5" />
+          <span>Join Group {groupId.startsWith("group_") ? groupId.replace("group_", "") : groupId}</span>
+          <ArrowUpRight className="w-3.5 h-3.5 opacity-75" />
+        </Link>
+      );
+    }
 
     // Check if it's @all or @everyone
     if (lower === "@all" || lower === "@everyone") {

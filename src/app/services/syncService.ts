@@ -1,4 +1,4 @@
-import { collection, doc, setDoc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { collection, doc, setDoc, getDoc, updateDoc, serverTimestamp, increment } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { offlineDb, OutgoingQueuedMessage, CachedMessage } from "../lib/offlineDb";
 import { UserAccount } from "../context/AuthContext";
@@ -93,6 +93,28 @@ export async function processOutgoingQueue(): Promise<void> {
         // Update parent chat doc
         const chatRef = doc(db, "chats", item.chatId);
         const nowIso = new Date().toISOString();
+
+        getDoc(chatRef)
+          .then(async (chatSnap) => {
+            if (chatSnap.exists()) {
+              const participants = chatSnap.data().participants || [];
+              const updates: any = {};
+              let hasPeers = false;
+              participants.forEach((pId: string) => {
+                if (pId !== item.senderAnonId) {
+                  updates[`unreadCount.${pId}`] = increment(1);
+                  hasPeers = true;
+                }
+              });
+              if (hasPeers) {
+                await updateDoc(chatRef, updates);
+              }
+            }
+          })
+          .catch((e) => {
+            console.warn("Failed to increment peers unreadCount in queue process:", e);
+          });
+
         setDoc(
           chatRef,
           {
@@ -220,6 +242,28 @@ export async function queueAndSendMessage(
     { merge: true }
   )
     .then(async () => {
+      // Fetch chat participants and increment unreadCount for peers
+      getDoc(chatRef)
+        .then(async (chatSnap) => {
+          if (chatSnap.exists()) {
+            const participants = chatSnap.data().participants || [];
+            const updates: any = {};
+            let hasPeers = false;
+            participants.forEach((pId: string) => {
+              if (pId !== sender.anonId) {
+                updates[`unreadCount.${pId}`] = increment(1);
+                hasPeers = true;
+              }
+            });
+            if (hasPeers) {
+              await updateDoc(chatRef, updates);
+            }
+          }
+        })
+        .catch((e) => {
+          console.warn("Failed to increment peers unreadCount in direct write:", e);
+        });
+
       // Update chat metadata in Firestore
       setDoc(
         chatRef,

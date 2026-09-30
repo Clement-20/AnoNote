@@ -33,7 +33,7 @@ const firestoreSettings = {
   localCache: persistentLocalCache({
     tabManager: persistentMultipleTabManager(),
   }),
-  experimentalAutoDetectLongPolling: true,
+  experimentalForceLongPolling: true,
 };
 
 try {
