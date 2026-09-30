@@ -1,9 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { RouterProvider } from "react-router";
 import { router } from "./routes";
 import { AuthProvider } from "./context/AuthContext";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { initializeFlutterBridge } from "./services/flutterBridge";
+import { BiometricLockOverlay } from "./components/BiometricLockOverlay";
 
 // Helper for playing Web Audio notification beeps / call rings without external audio file dependencies
 export function playNotificationSound(type: 'message' | 'call') {
@@ -39,6 +40,13 @@ export function playNotificationSound(type: 'message' | 'call') {
 }
 
 export default function App() {
+  const [isLocked, setIsLocked] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("anonote_app_lock_enabled") === "true";
+    }
+    return false;
+  });
+
   useEffect(() => {
     // Initialize standard Flutter Bridge for Hybrid WebView containers
     initializeFlutterBridge((event, data) => {
@@ -71,7 +79,11 @@ export default function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <RouterProvider router={router} />
+        {isLocked ? (
+          <BiometricLockOverlay onUnlock={() => setIsLocked(false)} />
+        ) : (
+          <RouterProvider router={router} />
+        )}
       </AuthProvider>
     </ErrorBoundary>
   );

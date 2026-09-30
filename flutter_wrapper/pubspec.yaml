@@ -1,0 +1,21 @@
+name: anonote_flutter
+description: A premium, secure Flutter WebView wrapper for the AnoNote End-to-End Encrypted Messenger.
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  webview_flutter: ^4.8.0
+  share_plus: ^7.2.1
+  cupertino_icons: ^1.0.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.1
+
+flutter:
+  uses-material-design: true

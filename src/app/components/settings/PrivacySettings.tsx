@@ -1,12 +1,28 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SettingsPage } from "./SettingsPage";
 import { SettingsOption } from "./SettingsOption";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { Lock, Check } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
+import {
+  isBiometricsSupported,
+  isBiometricsEnabled,
+  enrollBiometrics,
+  disableBiometrics,
+} from "../../services/biometricService";
 
 export function PrivacySettings() {
+  const { currentUser } = useAuth();
   const [readReceipts, setReadReceipts] = useState(() => localStorage.getItem("anonote_read_receipts") !== "false");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isSupported, setIsSupported] = useState(false);
+  const [appLockEnabled, setAppLockEnabled] = useState(() => isBiometricsEnabled());
+
+  useEffect(() => {
+    isBiometricsSupported().then((supported) => {
+      setIsSupported(supported);
+    });
+  }, []);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -19,10 +35,31 @@ export function PrivacySettings() {
     showToast(checked ? "Read receipts enabled" : "Read receipts disabled");
   };
 
+  const handleToggleAppLock = async (checked: boolean) => {
+    if (checked) {
+      try {
+        const enrolled = await enrollBiometrics(currentUser.anonId);
+        if (enrolled) {
+          setAppLockEnabled(true);
+          showToast("Biometric App Lock activated! 🔒");
+        } else {
+          setAppLockEnabled(false);
+        }
+      } catch (err: any) {
+        setAppLockEnabled(false);
+        showToast(err?.message || "Verification failed");
+      }
+    } else {
+      disableBiometrics(currentUser.anonId);
+      setAppLockEnabled(false);
+      showToast("App lock deactivated.");
+    }
+  };
+
   return (
     <SettingsPage title="Privacy">
       {toastMessage && (
-        <div className="fixed top-4 right-4 z-50 bg-[#0284c7] text-white px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium">
+        <div className="fixed top-4 right-4 z-50 bg-[#0284c7] text-white px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium shadow-lg border border-[#38bdf8]/20">
           <Check className="w-4 h-4" />
           {toastMessage}
         </div>
@@ -86,9 +123,20 @@ export function PrivacySettings() {
           showArrow
         />
         <SettingsOption
-          title="App lock"
-          description="Require authentication to open AnoNote"
-          rightContent={<ToggleSwitch defaultChecked={false} />}
+          title="Biometric App Lock"
+          description={
+            isSupported
+              ? "Require FaceID, TouchID, or Fingerprint verification to unlock and open AnoNote."
+              : "Require Local Fingerprint or Face ID to open AnoNote. (Not supported on this browser/sandbox)"
+          }
+          rightContent={
+            <ToggleSwitch
+              key={String(appLockEnabled)}
+              defaultChecked={appLockEnabled}
+              onChange={handleToggleAppLock}
+              disabled={!isSupported && !appLockEnabled}
+            />
+          }
         />
       </div>
 
