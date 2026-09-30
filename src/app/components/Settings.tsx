@@ -13,6 +13,7 @@ import {
   Check,
   ArrowLeft,
   Search,
+  Archive,
 } from "lucide-react";
 import { SettingsItem } from "./SettingsItem";
 import { VerifiedBadge } from "./VerifiedBadge";
@@ -129,6 +130,13 @@ export function Settings() {
             icon={Palette}
             title="Chats"
             description="Theme, wallpapers, chat history"
+          />
+        </Link>
+        <Link to="/archived">
+          <SettingsItem
+            icon={Archive}
+            title="Archived chats"
+            description="Manage your archived conversations"
           />
         </Link>
         <Link to="/settings/notifications">

@@ -56,6 +56,7 @@ export interface FirestoreChat {
   lastSenderId: string;
   lastMessageStatus?: "sent" | "delivered" | "read";
   unreadCount?: { [anonId: string]: number };
+  archivedBy?: { [anonId: string]: boolean };
   createdAt: string;
   updatedAt: string;
   isPending?: boolean;
@@ -1012,6 +1013,32 @@ export async function deleteMessage(chatId: string, messageId: string) {
     await offlineDb.cachedMessages.delete(messageId);
   } catch (e) {
     console.error("Failed to delete message:", e);
+  }
+}
+
+// Archive a chat for a specific user
+export async function archiveChat(chatId: string, userAnonId: string) {
+  if (!chatId || !userAnonId) return;
+  const chatRef = doc(db, "chats", chatId);
+  try {
+    await updateDoc(chatRef, {
+      [`archivedBy.${userAnonId}`]: true,
+    });
+  } catch (err) {
+    console.error("Error archiving chat:", err);
+  }
+}
+
+// Unarchive a chat for a specific user
+export async function unarchiveChat(chatId: string, userAnonId: string) {
+  if (!chatId || !userAnonId) return;
+  const chatRef = doc(db, "chats", chatId);
+  try {
+    await updateDoc(chatRef, {
+      [`archivedBy.${userAnonId}`]: false,
+    });
+  } catch (err) {
+    console.error("Error unarchiving chat:", err);
   }
 }
 

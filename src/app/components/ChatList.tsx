@@ -30,6 +30,7 @@ import {
   markMessagesAsDelivered,
   subscribeToBroadcast,
   FirestoreChat,
+  archiveChat,
 } from "../services/chatService";
 
 // Synthesize a gorgeous high-fidelity double-beep notification sound
@@ -303,9 +304,13 @@ export function ChatList() {
     };
   });
 
+  const archivedCount = firestoreChats.filter((c) => c.archivedBy?.[currentUser.anonId] === true).length;
   const totalUnreadChats = mappedChats.filter((c) => c.unread > 0).length;
 
   const filteredChats = mappedChats.filter((chat) => {
+    const originalChat = firestoreChats.find((fc) => fc.id === chat.id);
+    if (originalChat?.archivedBy?.[currentUser.anonId]) return false;
+
     const matchesSearch =
       chat.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       chat.lastMessage.toLowerCase().includes(searchQuery.toLowerCase());
@@ -492,7 +497,7 @@ export function ChatList() {
           <Archive className="w-5 h-5 text-[#8696a0]" />
           <span className="text-[15px] font-medium text-[#e9edef]">Archived</span>
         </div>
-        <span className="text-xs text-[#38bdf8] font-medium font-mono">0</span>
+        <span className="text-xs text-[#38bdf8] font-medium font-mono">{archivedCount}</span>
       </Link>
 
       {/* Main Chat Conversations List */}
@@ -516,7 +521,11 @@ export function ChatList() {
         ) : (
           filteredChats.map((chat) => (
             <Link key={chat.id} to={`/chat/${chat.id}`} className="block">
-              <ChatListItem {...chat} isActive={currentOpenChatId === chat.id} />
+              <ChatListItem
+                {...chat}
+                isActive={currentOpenChatId === chat.id}
+                onArchive={(id) => archiveChat(id, currentUser.anonId)}
+              />
             </Link>
           ))
         )}
