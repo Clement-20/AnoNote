@@ -2,6 +2,7 @@ import { collection, doc, setDoc, getDoc, updateDoc, serverTimestamp, increment 
 import { db } from "../lib/firebase";
 import { offlineDb, OutgoingQueuedMessage, CachedMessage } from "../lib/offlineDb";
 import { UserAccount } from "../context/AuthContext";
+import { triggerNativeHaptic } from "./flutterBridge";
 
 type QueueChangeListener = (queuedCount: number) => void;
 const queueChangeListeners: Set<QueueChangeListener> = new Set();
@@ -202,6 +203,7 @@ export async function queueAndSendMessage(
   };
 
   // 1. Cache immediately in Dexie for instant UI display
+  triggerNativeHaptic("light");
   await offlineDb.cachedMessages.put({
     id: localId,
     chatId,

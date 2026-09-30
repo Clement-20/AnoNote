@@ -12,6 +12,7 @@ import { useAuth } from "../context/AuthContext";
 import { ConnectModal } from "./ConnectModal";
 import { subscribeToUserChats, FirestoreChat } from "../services/chatService";
 import { subscribeToStatuses } from "../services/statusService";
+import { updateNativeAppBadge, notifyNativeRouteChanged } from "../services/flutterBridge";
 
 interface ResponsiveLayoutProps {
   children: ReactNode;
@@ -22,6 +23,11 @@ export function ResponsiveLayout({ children, showBottomNav = true }: ResponsiveL
   const location = useLocation();
   const { currentUser } = useAuth();
   const [showConnectModal, setShowConnectModal] = useState(false);
+
+  // Sync route changed to Flutter WebView
+  useEffect(() => {
+    notifyNativeRouteChanged(location.pathname);
+  }, [location.pathname]);
 
   // Real-time actual count of unread chats
   const [unreadChatsCount, setUnreadChatsCount] = useState<number>(() => {
@@ -47,6 +53,7 @@ export function ResponsiveLayout({ children, showBottomNav = true }: ResponsiveL
     const unsubscribe = subscribeToUserChats(currentUser.anonId, (chats) => {
       const count = chats.filter((c) => (c.unreadCount?.[currentUser.anonId] || 0) > 0).length;
       setUnreadChatsCount(count);
+      updateNativeAppBadge(count);
     });
     return () => unsubscribe();
   }, [currentUser?.anonId]);

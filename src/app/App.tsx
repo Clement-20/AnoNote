@@ -3,6 +3,7 @@ import { RouterProvider } from "react-router";
 import { router } from "./routes";
 import { AuthProvider } from "./context/AuthContext";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { initializeFlutterBridge } from "./services/flutterBridge";
 
 // Helper for playing Web Audio notification beeps / call rings without external audio file dependencies
 export function playNotificationSound(type: 'message' | 'call') {
@@ -39,6 +40,11 @@ export function playNotificationSound(type: 'message' | 'call') {
 
 export default function App() {
   useEffect(() => {
+    // Initialize standard Flutter Bridge for Hybrid WebView containers
+    initializeFlutterBridge((event, data) => {
+      console.log(`[App] Injected Flutter Event Received: ${event}`, data);
+    });
+
     // Request browser notification permission on load if default
     if ("Notification" in window && Notification.permission === "default") {
       Notification.requestPermission();
