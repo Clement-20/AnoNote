@@ -40,14 +40,14 @@ export function BiometricLockOverlay({ onUnlock }: BiometricLockOverlayProps) {
     <div className="fixed inset-0 bg-[#0b141a] z-[9999] flex flex-col items-center justify-center p-6 text-[#e9edef] font-sans">
       <div className="max-w-sm w-full flex flex-col items-center text-center">
         {/* Secure E2EE Header Badge */}
-        <div className="w-16 h-16 rounded-2xl bg-[#0084ff]/10 border border-[#0084ff]/20 flex items-center justify-center mb-6 animate-pulse">
-          <ShieldCheck className="w-8 h-8 text-[#0084ff]" />
+        <div className="w-12 h-12 rounded-xl bg-[#0084ff]/10 border border-[#0084ff]/20 flex items-center justify-center mb-5 animate-pulse">
+          <ShieldCheck className="w-6 h-6 text-[#0084ff]" />
         </div>
 
-        <h1 className="text-xl font-bold tracking-tight text-[#e9edef] mb-2">
+        <h1 className="text-lg font-semibold tracking-tight text-[#e9edef] mb-1.5">
           AnoNote Locked
         </h1>
-        <p className="text-sm text-[#8696a0] max-w-xs mb-10 leading-relaxed">
+        <p className="text-xs text-[#8696a0] max-w-xs mb-8 leading-relaxed">
           Biometric app-lock is enabled to secure your private end-to-end encrypted chats.
         </p>
 
@@ -55,14 +55,14 @@ export function BiometricLockOverlay({ onUnlock }: BiometricLockOverlayProps) {
         <button
           onClick={triggerAuth}
           disabled={isAuthenticating}
-          className={`w-24 h-24 rounded-full border border-dashed border-[#0084ff]/30 flex items-center justify-center transition-all duration-300 relative group cursor-pointer ${
+          className={`w-16 h-16 rounded-full border border-dashed border-[#0084ff]/30 flex items-center justify-center transition-all duration-300 relative group cursor-pointer ${
             isAuthenticating
               ? "scale-95 bg-[#0084ff]/10 animate-pulse"
               : "hover:scale-105 hover:bg-[#0084ff]/5 hover:border-[#0084ff]/60"
           }`}
           title="Verify Biometrics"
         >
-          <Fingerprint className={`w-12 h-12 transition-transform ${isAuthenticating ? "text-[#0084ff] rotate-12" : "text-[#8696a0] group-hover:text-[#0084ff]"}`} />
+          <Fingerprint className={`w-8 h-8 transition-transform ${isAuthenticating ? "text-[#0084ff] rotate-12" : "text-[#8696a0] group-hover:text-[#0084ff]"}`} />
         </button>
 
         <span className="text-xs text-[#8696a0] font-medium tracking-wide uppercase mt-4">

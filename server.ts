@@ -2,6 +2,7 @@ import express from "express";
 import http from "http";
 import { Server } from "socket.io";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 import { GoogleGenAI } from "@google/genai";
 
@@ -313,6 +314,31 @@ io.on("connection", (socket) => {
 // API health
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", usersCount: usersMap.size });
+});
+
+// Direct APK download endpoint for Uptodown and other stores
+// Must return direct file stream with application/vnd.android.package-archive
+app.get(["/downloads/anonote.apk", "/anonote.apk", "/api/download/apk"], (req, res) => {
+  const possiblePaths = [
+    path.join(__dirname, "public", "downloads", "anonote.apk"),
+    path.join(__dirname, "public", "anonote.apk"),
+    path.join(__dirname, "dist", "downloads", "anonote.apk"),
+    path.join(__dirname, "dist", "anonote.apk"),
+  ];
+
+  for (const apkPath of possiblePaths) {
+    if (fs.existsSync(apkPath)) {
+      res.setHeader("Content-Type", "application/vnd.android.package-archive");
+      res.setHeader("Content-Disposition", 'attachment; filename="anonote.apk"');
+      return res.sendFile(apkPath);
+    }
+  }
+
+  res.status(404).json({
+    error: "APK_FILE_NOT_FOUND",
+    message: "No APK binary found at /public/downloads/anonote.apk yet.",
+    help: "Build your APK using Flutter ('flutter build apk --release') and place the resulting anonote.apk file in the /public/downloads directory, or use GitHub Releases."
+  });
 });
 
 if (process.env.NODE_ENV !== "production") {

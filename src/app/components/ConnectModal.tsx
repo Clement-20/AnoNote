@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { X, Copy, Check, Share2, QrCode, ArrowRight } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { getOrCreateDirectChat } from "../services/chatService";
+import { shareContent } from "../utils/shareUtil";
 
 interface ConnectModalProps {
   isOpen: boolean;
@@ -30,19 +31,17 @@ export function ConnectModal({ isOpen, onClose, initialPeerId }: ConnectModalPro
   };
 
   const handleShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: "Connect on AnoNote",
-          text: `Chat with me securely on AnoNote: ${currentUser.anonId}`,
-          url: connectUrl,
-        });
-      } catch {
-        // cancelled
-      }
-    } else {
-      handleCopy();
-    }
+    await shareContent({
+      title: "Connect on AnoNote",
+      text: `Chat with me securely on AnoNote: ${currentUser.anonId}`,
+      url: connectUrl,
+      onSuccess: (fallbackUsed) => {
+        if (fallbackUsed) {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2500);
+        }
+      },
+    });
   };
 
   const handleConnectWithPeer = async (customPeer?: string) => {

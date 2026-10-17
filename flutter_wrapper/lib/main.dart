@@ -31,7 +31,7 @@ class AnoNoteApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFF0B141A),
         colorScheme: const ColorScheme.dark(
           primary: Color(0xFF0084FF),
-          background: const Color(0xFF0B141A),
+          surface: Color(0xFF0B141A),
         ),
       ),
       home: const MainWebViewPage(),
@@ -206,36 +206,29 @@ class _MainWebViewPageState extends State<MainWebViewPage> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Safe Messenger Lock Icon
+                        // Small compact brand icon (WhatsApp / Instagram style)
                         Container(
-                          width: 80,
-                          height: 80,
+                          width: 56,
+                          height: 56,
                           decoration: BoxDecoration(
                             color: const Color(0xFF111B21),
-                            borderRadius: BorderRadius.circular(24),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0x330084FF)),
                           ),
                           child: const Icon(
                             Icons.security,
                             color: Color(0xFF0084FF),
-                            size: 40,
+                            size: 28,
                           ),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 14),
                         const Text(
                           'AnoNote',
                           style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: -0.5,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.3,
                             color: Color(0xFFE9EDEF),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'End-to-End Encrypted Messenger',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF8696A0),
                           ),
                         ),
                         const SizedBox(height: 32),

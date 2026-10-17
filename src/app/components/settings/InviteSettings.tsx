@@ -2,6 +2,7 @@ import { useState } from "react";
 import { SettingsPage } from "./SettingsPage";
 import { Copy, Share2, Check } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { shareContent } from "../../utils/shareUtil";
 
 export function InviteSettings() {
   const { currentUser, getConnectUrl } = useAuth();
@@ -16,19 +17,17 @@ export function InviteSettings() {
   };
 
   const handleShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: "Connect with me on AnoNote",
-          text: `Chat with me securely on AnoNote: ${inviteLink}`,
-          url: inviteLink,
-        });
-      } catch (e) {
-        // cancelled
-      }
-    } else {
-      handleCopy();
-    }
+    await shareContent({
+      title: "Connect with me on AnoNote",
+      text: "Connect with me on AnoNote, the zero-knowledge end-to-end encrypted messenger.",
+      url: inviteLink,
+      onSuccess: (fallbackUsed) => {
+        if (fallbackUsed) {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        }
+      },
+    });
   };
 
   return (
