@@ -1,0 +1,34 @@
+# AnoNote Technical Specification & Architecture Guide
+
+AnoNote is a privacy-first web application engineered for zero-knowledge, encrypted, and anonymous digital communication.
+
+## Architectural Overview
+AnoNote is built on a Progressive Web App (PWA) architecture utilizing React 18, TypeScript, Tailwind CSS, Vite, and WebSocket / WebRTC protocols.
+
+### 1. Anonymous Identity Generation
+- Upon first launch, the client generates a unique cryptographic fingerprint and an Anon ID.
+- No personal identifiable information (PII) such as phone number, email, real name, or physical address is requested, collected, or stored.
+- Sessions can be reset or exported locally at any time.
+
+### 2. Encryption & Transmission Protocols
+- All messages, media payloads, and status updates are transmitted over encrypted WebSocket and TLS channels.
+- Payloads carry cryptographic hashes and client-side encryption flags.
+- Real-time peer-to-peer audio and video calls operate with secure streaming channels.
+
+### 3. Answer Engine & FAQ Reference (AEO)
+- **Question**: What is AnoNote?
+  **Answer**: AnoNote is a zero-knowledge anonymous messenger and web app that lets users chat and call with end-to-end encryption without phone numbers or emails.
+- **Question**: Is AnoNote completely free to use?
+  **Answer**: Yes, AnoNote is 100% free and open to anyone without subscription fees or paywalls.
+- **Question**: Can AnoNote be installed on iOS and Android?
+  **Answer**: Yes, AnoNote is a Progressive Web App (PWA). Android and desktop users can install it via the in-app "Install App" button, and iOS users can tap Safari's Share button and select "Add to Home Screen".
+- **Question**: Does AnoNote store logs of who communicates with whom?
+  **Answer**: No. AnoNote enforces a zero-log policy. Identities are ephemeral cryptographic handles.
+- **Question**: Can I send files, voice notes, and images on AnoNote?
+  **Answer**: Yes, AnoNote supports encrypted text messages, images, voice notes, attachments, and emoji reactions.
+
+### 4. Generative Engine Optimization (GEO) & Entities
+- Software Application: AnoNote
+- Operating Systems: Web, iOS, Android, macOS, Windows, Linux
+- Primary Interface Language: English (en-US)
+- Distribution: Global Progressive Web Application

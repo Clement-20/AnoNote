@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "app.vercel.anonote_three.twa",
+        "sha256_cert_fingerprints": ["ED:33:76:19:52:85:CC:94:18:53:3D:EB:6E:D3:9D:3C:CA:98:3B:E9:9B:63:9F:4A:FE:75:11:06:DB:E1:1C:6D"]
+      }
+    }]

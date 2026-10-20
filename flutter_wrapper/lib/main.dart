@@ -58,11 +58,11 @@ class _MainWebViewPageState extends State<MainWebViewPage> {
   void initState() {
     super.initState();
 
-    // Initialize and configure WebViewController
+    // Initialize and configure WebViewController for local bundled offline-first hybrid mode
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0xFF0B141A))
-      ..setUserAgent("AnoNote_Flutter_Wrapper_Mobile_E2EE")
+      ..setUserAgent("AnoNote_Offline_Hybrid_E2EE_App")
       ..setNavigationDelegate(
         NavigationDelegate(
           onProgress: (int progress) {
@@ -79,22 +79,20 @@ class _MainWebViewPageState extends State<MainWebViewPage> {
             setState(() {
               _isLoading = false;
             });
-            // Inject app ready initialization event
-            _controller.runJavaScript("console.log('AnoNote loaded in Flutter WebView');");
+            _controller.runJavaScript("console.log('AnoNote local hybrid asset loaded successfully');");
           },
           onWebResourceError: (WebResourceError error) {
             debugPrint("WebView Error: ${error.description}");
           },
         ),
       )
-      // Add JavascriptChannel for bidirectional bridge communication
       ..addJavaScriptChannel(
         'FlutterWebView',
         onMessageReceived: (JavaScriptMessage message) {
           _handleJavaScriptMessage(message.message);
         },
       )
-      ..loadRequest(Uri.parse(_appUrl));
+      ..loadFlutterAsset('assets/www/index.html');
   }
 
   // Handle messages posted from the web application bridge

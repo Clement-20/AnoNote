@@ -1,0 +1,25 @@
+# AnoNote - Private & Anonymous Messenger Web Application
+
+> AnoNote is a zero-knowledge, end-to-end encrypted anonymous messaging and voice/video calling Progressive Web Application (PWA). It provides cryptographically secure communication without requiring phone numbers, emails, or personal identification.
+
+## Core Identity & Value Proposition
+- **Brand Name**: AnoNote
+- **Primary Color**: AnoNote Blue (#0284c7 / #00a8fc)
+- **Application Category**: Secure Communication / Private Messaging PWA
+- **Target Audience**: Privacy-conscious individuals, journalists, researchers, and global users seeking private conversations.
+- **Privacy Model**: Zero-knowledge architecture. No personal data collected, no phone numbers, no email addresses, no tracking cookies, no advertising telemetry.
+
+## Key Features & Capabilities
+1. **Anon ID Protocol**: Every user generates an anonymous cryptographic keypair and unique Anon ID (e.g., `#ANON-XXXX-XXXX`) entirely on the client.
+2. **End-to-End Encryption (E2EE)**: Messages and media attachments are encrypted in transit and at rest.
+3. **Anonymous Voice & Video Calling**: Real-time peer communication over secure WebRTC / Socket channels with zero identity leakage.
+4. **Disappearing Messages**: Configurable ephemeral messaging timers (24 hours, 7 days, 90 days) ensuring total communication hygiene.
+5. **Ephemeral Status Stories**: Share anonymous text and image updates that expire automatically.
+6. **Progressive Web App (PWA)**: Installable directly from browser on iOS Safari, Android Chromium, Windows, macOS, and Linux with offline app shell caching.
+7. **Offline Caching**: Built-in service worker enables offline message browsing and resilient network reconnection.
+
+## Canonical URLs & Resources
+- **Web App**: https://ais-pre-u6qxctn3yuuriucalqjrby-622545485148.europe-west2.run.app/
+- **PWA Manifest**: https://ais-pre-u6qxctn3yuuriucalqjrby-622545485148.europe-west2.run.app/manifest.webmanifest
+- **Sitemap**: https://ais-pre-u6qxctn3yuuriucalqjrby-622545485148.europe-west2.run.app/sitemap.xml
+- **Full Architecture Documentation**: https://ais-pre-u6qxctn3yuuriucalqjrby-622545485148.europe-west2.run.app/llms-full.txt

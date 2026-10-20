@@ -1,0 +1,25 @@
+User-agent: *
+Allow: /
+Disallow: /admin*
+Disallow: /private/
+
+# Generative AI & Search Engine Crawlers
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+Sitemap: https://ais-pre-u6qxctn3yuuriucalqjrby-622545485148.europe-west2.run.app/sitemap.xml
